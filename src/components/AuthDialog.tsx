@@ -31,19 +31,20 @@ export default function AuthDialog({
     try {
       const supabase = createClient()
       if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email, password })
+        const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw new Error(error.message)
-        if (data.user) {
-          // link this account to the users table so projects/contributions work
-          await supabase
-            .from('users')
-            .insert({ id: data.user.id, auth_method: 'email' })
-        }
         toast.success('Check your inbox to confirm your email, then sign in.')
         setMode('signin')
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw new Error(error.message)
+        if (data.user) {
+          // link this account to the users table (no-op if already linked)
+          const { error: linkError } = await supabase
+            .from('users')
+            .upsert({ id: data.user.id, auth_method: 'email' }, { onConflict: 'id' })
+          if (linkError) console.warn('users row link failed', linkError)
+        }
         toast.success('Signed in.')
         onClose()
       }
