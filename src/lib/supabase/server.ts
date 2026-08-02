@@ -18,3 +18,12 @@ export async function createClient() {
     }
   )
 }
+
+/** Server-side session check. Returns the Supabase user or null. */
+export async function getUser() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user
+}

@@ -43,7 +43,17 @@ const roles: Role[] = [
   },
 ]
 
-function RoleCard({ role, index }: { role: Role; index: number }) {
+function RoleCard({
+  role,
+  index,
+  dimmed,
+  onHover,
+}: {
+  role: Role
+  index: number
+  dimmed: boolean
+  onHover: (index: number | null) => void
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [tilt, setTilt] = useState('')
 
@@ -53,11 +63,7 @@ function RoleCard({ role, index }: { role: Role; index: number }) {
     const rect = el.getBoundingClientRect()
     const x = (e.clientX - rect.left) / rect.width - 0.5
     const y = (e.clientY - rect.top) / rect.height - 0.5
-    setTilt(`perspective(900px) rotateY(${x * 12}deg) rotateX(${-y * 12}deg) scale(1.03)`)
-  }
-
-  function onLeave() {
-    setTilt('')
+    setTilt(`perspective(900px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`)
   }
 
   const Icon = role.icon
@@ -66,12 +72,19 @@ function RoleCard({ role, index }: { role: Role; index: number }) {
     <div
       ref={ref}
       onMouseMove={onMove}
-      onMouseLeave={onLeave}
-      className="w-72 shrink-0 transition-transform duration-200 ease-out will-change-transform"
-      style={{ transform: tilt }}
+      onMouseEnter={() => onHover(index)}
+      onMouseLeave={() => onHover(null)}
+      className={`w-72 shrink-0 transition-all duration-300 will-change-transform ${
+        dimmed ? 'opacity-30 saturate-50 blur-[2px] scale-[0.97]' : 'opacity-100 z-10'
+      }`}
+      style={{ transform: dimmed ? undefined : tilt }}
     >
       <div
-        className="h-full rounded-3xl bg-gradient-to-b from-amber-500/50 via-stone-700/60 to-stone-800/60 p-px shadow-lg shadow-amber-950/30 transition hover:shadow-amber-500/20"
+        className={`h-full rounded-3xl bg-gradient-to-b from-amber-500/50 via-stone-700/60 to-stone-800/60 p-px transition-shadow duration-300 ${
+          dimmed
+            ? 'shadow-none'
+            : 'shadow-lg shadow-amber-950/30 hover:shadow-xl hover:shadow-amber-500/25'
+        }`}
         style={{ rotate: index % 2 === 0 ? '-1.5deg' : '1.5deg' }}
       >
         <div className="flex h-64 flex-col justify-between rounded-[calc(1.5rem-1px)] bg-stone-950/95 p-6">
@@ -95,20 +108,52 @@ function RoleCard({ role, index }: { role: Role; index: number }) {
 }
 
 export default function RoleMarquee() {
+  const [hovered, setHovered] = useState<number | null>(null)
+  const spotlightRef = useRef<HTMLDivElement>(null)
+
+  function onMove(e: React.MouseEvent<HTMLDivElement>) {
+    const el = spotlightRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    el.style.setProperty('--mx', `${e.clientX - rect.left}px`)
+    el.style.setProperty('--my', `${e.clientY - rect.top}px`)
+  }
+
   return (
     <section className="pb-20">
       <div className="mx-auto max-w-6xl px-6 text-center">
-        <h2 className="text-3xl font-bold">Built for the whole crew</h2>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
+          Who it&apos;s for
+        </p>
+        <h2 className="mt-3 text-3xl font-bold">Built for the whole crew</h2>
         <p className="mx-auto mt-3 max-w-2xl text-stone-400">
           One project, five kinds of people, one shared ledger. Whoever you are,
           your percentage is on it.
         </p>
       </div>
 
-      <div className="marquee relative mt-10 overflow-hidden py-4 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <div className="marquee-track flex w-max gap-6 pr-6">
+      <div
+        onMouseMove={onMove}
+        className="marquee relative mt-10 overflow-hidden py-4 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]"
+      >
+        {/* cursor spotlight — cards dim while a gold glow follows the mouse */}
+        <div
+          ref={spotlightRef}
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            background:
+              'radial-gradient(520px circle at var(--mx, 50%) var(--my, 50%), rgba(245,158,11,0.10), transparent 65%)',
+          }}
+        />
+        <div className="marquee-track relative z-10 flex w-max gap-6 pr-6">
           {[...roles, ...roles].map((role, i) => (
-            <RoleCard key={`${role.title}-${i}`} role={role} index={i} />
+            <RoleCard
+              key={`${role.title}-${i}`}
+              role={role}
+              index={i}
+              dimmed={hovered !== null && hovered !== i}
+              onHover={setHovered}
+            />
           ))}
         </div>
       </div>

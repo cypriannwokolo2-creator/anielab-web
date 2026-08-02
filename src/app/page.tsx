@@ -137,14 +137,47 @@ export default async function Home() {
       {/* crew marquee */}
       <RoleMarquee />
 
+      {/* built on */}
+      <section className="border-y border-stone-800/60 bg-stone-900/30 py-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-6 text-sm text-stone-500">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-stone-500">
+            Built on
+          </span>
+          {['Stellar', 'Soroban', 'IPFS', 'Freighter', 'Supabase'].map((tech) => (
+            <span
+              key={tech}
+              className="font-mono text-xs text-stone-400 transition hover:text-amber-300"
+            >
+              {tech}
+            </span>
+          ))}
+        </div>
+      </section>
+
       {/* live contract */}
-      <div id="contract" className="scroll-mt-20 pb-16">
+      <div id="contract" className="scroll-mt-20 pb-16 pt-16">
+        <div className="mx-auto max-w-6xl px-6 pb-6 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
+            The mechanism
+          </p>
+          <h2 className="mt-3 text-3xl font-bold">One contract, doing the math</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-stone-400">
+            This is a real project contract on the Stellar testnet — its
+            contributors and split percentages below are live, read directly
+            from the chain.
+          </p>
+        </div>
         <ContractExplorer />
       </div>
 
       {/* how it works */}
       <section className="mx-auto max-w-6xl px-6 pb-20">
-        <h2 className="text-center text-3xl font-bold">How AnieLab works</h2>
+        <div className="text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
+            The sequence
+          </p>
+          <h2 className="mt-3 text-3xl font-bold">How AnieLab works</h2>
+        </div>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {steps.map((step, i) => (
             <div
@@ -165,14 +198,19 @@ export default async function Home() {
 
       {/* projects */}
       <section className="mx-auto max-w-6xl px-6 pb-24">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold">Active projects</h2>
-            {showMockData && (
-              <span className="rounded-full border border-stone-700 bg-stone-800/80 px-3 py-1 text-xs text-stone-400">
-                Development preview — sample projects
-              </span>
-            )}
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
+              In the works
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <h2 className="text-2xl font-bold">Active projects</h2>
+              {showMockData && (
+                <span className="rounded-full border border-stone-700 bg-stone-800/80 px-3 py-1 text-xs text-stone-400">
+                  Development preview — sample projects
+                </span>
+              )}
+            </div>
           </div>
           <Link href="/create" className="text-sm text-amber-400 hover:text-amber-300">
             Create one →
@@ -208,7 +246,12 @@ export default async function Home() {
 
       {/* faq */}
       <section className="mx-auto max-w-3xl px-6 pb-24">
-        <h2 className="text-center text-3xl font-bold">Common questions</h2>
+        <div className="text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
+            Questions, answered
+          </p>
+          <h2 className="mt-3 text-3xl font-bold">Common questions</h2>
+        </div>
         <div className="mt-10 space-y-3">
           {faqs.map((faq) => (
             <details
@@ -222,6 +265,42 @@ export default async function Home() {
               <p className="mt-3 text-sm leading-relaxed text-stone-400">{faq.answer}</p>
             </details>
           ))}
+        </div>
+      </section>
+
+      {/* final cta */}
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-amber-500/40 via-stone-800/60 to-stone-900 p-px">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-24 left-1/3 h-64 w-64 rounded-full bg-amber-500/20 blur-3xl" />
+          </div>
+          <div className="relative flex flex-col items-center rounded-[calc(1.5rem-1px)] bg-stone-950/90 px-8 py-16 text-center">
+            <h2 className="text-4xl font-bold">
+              Your crew.{' '}
+              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
+                Your contract.
+              </span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-stone-400">
+              Agree on the split once, then let the contract do every payout
+              from then on. Writers, illustrators, composers, voice actors —
+              this is what fair credit looks like when it&apos;s written down.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/create"
+                className="rounded-full bg-gradient-to-b from-amber-300 to-amber-500 px-7 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/50 transition hover:from-amber-200 hover:to-amber-400"
+              >
+                Start a project
+              </Link>
+              <Link
+                href="#contract"
+                className="rounded-full border border-stone-700 bg-stone-900/60 px-7 py-3 font-medium text-stone-200 transition hover:border-amber-500/60 hover:text-amber-200"
+              >
+                See the live contract
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
