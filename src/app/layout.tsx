@@ -5,13 +5,13 @@ import { Toaster } from "sonner";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "AnieLab | Anime Co-Creation Platform for Indie Creators",
+  title: "AnieLab | Anime, Comics & Game Co-Creation Platform",
   description:
-    "Co-create original anime with writers, illustrators, and composers — contributions tracked on-chain, revenue split by percentage automatically. No invoices.",
+    "Co-create anime, comics, games, and music with writers, illustrators, composers, and voice actors — contributions tracked on-chain, revenue split by percentage automatically.",
   openGraph: {
-    title: "The anime project where everyone gets paid their share",
+    title: "The project where every creator gets paid their share",
     description:
-      "AnieLab is where indie anime teams co-create: every contribution tracked on-chain, every payout split automatically by the percentage you agreed to.",
+      "AnieLab is where creators build original IP together — animation, manga, games, music. Every contribution tracked on-chain, every payout split by the percentage you agreed to.",
     type: "website",
     siteName: "AnieLab",
     locale: "en_US",

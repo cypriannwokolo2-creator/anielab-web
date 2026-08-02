@@ -32,7 +32,7 @@ const roles: Role[] = [
   {
     icon: Mic,
     title: 'Voice Actor',
-    line: 'Lines, takes, and direction tracked per episode — never lost in a group chat.',
+    line: 'Lines, takes, and direction tracked per episode or track — never lost in a group chat.',
     tag: 'Your % on-chain',
   },
   {
@@ -127,8 +127,8 @@ export default function RoleMarquee() {
         </p>
         <h2 className="mt-3 text-3xl font-bold">Built for the whole crew</h2>
         <p className="mx-auto mt-3 max-w-2xl text-stone-400">
-          One project, five kinds of people, one shared ledger. Whoever you are,
-          your percentage is on it.
+          Web3 for creators, not just developers. One project, five kinds of
+          people, one shared ledger — no crypto experience needed to join.
         </p>
       </div>
 

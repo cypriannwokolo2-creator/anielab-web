@@ -27,6 +27,11 @@ const steps = [
 
 const faqs = [
   {
+    question: 'Is AnieLab only for anime projects?',
+    answer:
+      'No. AnieLab works for any team making original IP together — manga and webtoons, indie games, music albums, short films, animation. The contract doesn’t care what you’re making; it cares that every contributor gets their agreed percentage.',
+  },
+  {
     question: 'Do I need to know anything about crypto to join?',
     answer:
       'No. If you can upload a file and fill in a form, you can join. One person on the team sets up the project — the rest of you just get a link. Payments arrive in a Stellar wallet, and setting one up is explained step by step when you get there.',
@@ -106,16 +111,17 @@ export default async function Home() {
             Live on Stellar testnet — early days, built in public
           </p>
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
-            Co-create anime.{' '}
+            Co-create anime, comics &amp; games.{' '}
             <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
               Get paid exactly for your share.
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-stone-400">
-            Your percentage is written into the project’s contract from day one.
-            Every contribution is credited, and when crowdfunding or streaming
-            revenue arrives, it’s split automatically — no invoices, no chasing
-            anyone, no legal team.
+            AnieLab is where writers, illustrators, composers, and voice actors
+            build original IP together — animation, manga, indie games, music.
+            Your percentage is written into the project&apos;s contract from day
+            one, and when crowdfunding or streaming revenue arrives, it&apos;s
+            split automatically — no invoices, no chasing anyone, no legal team.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             <Link
@@ -283,8 +289,9 @@ export default async function Home() {
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-stone-400">
               Agree on the split once, then let the contract do every payout
-              from then on. Writers, illustrators, composers, voice actors —
-              this is what fair credit looks like when it&apos;s written down.
+              from then on. Anime, manga, games, music — whatever your crew
+              makes together, this is what fair credit looks like when
+              it&apos;s written down.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
@@ -307,7 +314,7 @@ export default async function Home() {
       {/* footer */}
       <footer className="border-t border-stone-800 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-stone-500 sm:flex-row">
-          <span>AnieLab — Web3 co-creation for indie anime</span>
+          <span>AnieLab — Web3 co-creation for indie creators</span>
           <span className="font-mono text-xs">
             contracts / anielab-contracts · backend / anielab-backend · web / anielab-web
           </span>
