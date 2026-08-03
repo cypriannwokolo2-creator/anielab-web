@@ -37,3 +37,33 @@ body {
     animation: none;
   }
 }
+
+/* Dialog (portaled to body — header backdrop-blur would otherwise become
+   the containing block and break fixed positioning) */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dialog-panel {
+  animation: dialog-in 0.18s ease-out;
+}
+
+.dialog-overlay {
+  animation: fade-in 0.15s ease-out;
+}

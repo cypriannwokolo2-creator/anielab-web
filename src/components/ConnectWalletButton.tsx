@@ -6,7 +6,7 @@ import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import AuthDialog from './AuthDialog'
 
 export default function ConnectWalletButton() {
-  const { address, status, authStatus, error, signOut } = useWalletStore()
+  const { address, status, authStatus, provider, error, signOut } = useWalletStore()
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const walletBusy = status === 'connecting' || authStatus === 'signing'
@@ -27,6 +27,7 @@ export default function ConnectWalletButton() {
           <span
             className="cursor-pointer rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-2 font-mono text-xs text-amber-200"
             onClick={() => setDialogOpen(true)}
+            title={`Signed in with ${provider ?? 'wallet'}`}
           >
             {address.slice(0, 6)}…{address.slice(-4)}
           </span>

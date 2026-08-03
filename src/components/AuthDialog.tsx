@@ -1,12 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import { Loader2, Mail, Wallet, X } from 'lucide-react'
+import {
+  Loader2,
+  Mail,
+  Rabbit,
+  Rocket,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
+import { detectAvailableWallets, WalletAdapter } from '@/lib/stellar/wallets'
 import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'email' | 'wallet'
+
+const walletIcons: Record<string, typeof Wallet> = {
+  freighter: Wallet,
+  rabet: Rabbit,
+  lobstr: Rocket,
+}
 
 export default function AuthDialog({
   open,
@@ -20,9 +35,28 @@ export default function AuthDialog({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const [availableWallets, setAvailableWallets] = useState<WalletAdapter[]>([])
+  const [checkingWallets, setCheckingWallets] = useState(true)
 
   const { address, status, authStatus, error, signIn } = useWalletStore()
 
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    detectAvailableWallets()
+      .then((found) => {
+        if (!cancelled) setAvailableWallets(found)
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingWallets(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  // The dialog only ever renders after a user click (open=true), so this is
+  // always client-side — document.body is safe here, and SSR never reaches it.
   if (!open) return null
 
   async function emailSubmit(e: React.FormEvent) {
@@ -55,16 +89,26 @@ export default function AuthDialog({
     }
   }
 
-  async function walletSignIn() {
-    await signIn()
+  async function walletSignIn(providerId: string) {
+    await signIn(providerId)
+    if (useWalletStore.getState().authStatus === 'authenticated') {
+      toast.success('Signed in with wallet.')
+      onClose()
+    }
   }
 
   const walletBusy = status === 'connecting' || authStatus === 'signing'
   const signedIn = authStatus === 'authenticated'
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl border border-stone-700 bg-stone-950 p-6 shadow-2xl shadow-black/60">
+  return createPortal(
+    <div
+      className="dialog-overlay fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="dialog-panel max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-stone-700 bg-stone-950 p-6 shadow-2xl shadow-black/60"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold">
             {signedIn ? 'Signed in' : 'Join AnieLab'}
@@ -120,25 +164,47 @@ export default function AuthDialog({
             {tab === 'wallet' ? (
               <div className="mt-6 space-y-4">
                 <p className="text-sm text-stone-400">
-                  Sign in with your Stellar wallet. Freighter will ask you to
-                  approve a message — that&apos;s all, no private keys leave your
+                  Pick any wallet you have installed. It will ask you to approve
+                  a message — that&apos;s all, no private keys leave your
                   browser.
                 </p>
-                <button
-                  onClick={walletSignIn}
-                  disabled={walletBusy}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 py-3 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400 disabled:opacity-60"
-                >
-                  {walletBusy ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Check Freighter…
-                    </>
-                  ) : (
-                    <>
-                      <Wallet className="h-4 w-4" /> Continue with wallet
-                    </>
-                  )}
-                </button>
+
+                {checkingWallets ? (
+                  <div className="flex items-center justify-center gap-2 py-6 text-sm text-stone-500">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Looking for wallets…
+                  </div>
+                ) : availableWallets.length > 0 ? (
+                  <div className="space-y-2">
+                    {availableWallets.map((w) => {
+                      const Icon = walletIcons[w.id] ?? Wallet
+                      return (
+                        <button
+                          key={w.id}
+                          onClick={() => walletSignIn(w.id)}
+                          disabled={walletBusy}
+                          className="flex w-full items-center justify-between rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-left transition hover:border-amber-500/60 hover:bg-stone-800 disabled:opacity-60"
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span className="font-medium">{w.name}</span>
+                          </span>
+                          <span className="text-sm text-amber-400">Sign in →</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-stone-700 bg-stone-900/40 p-5 text-center text-sm text-stone-400">
+                    No Stellar wallet detected. Install the{' '}
+                    <span className="text-amber-300">Freighter</span>,{' '}
+                    <span className="text-amber-300">Rabet</span>, or{' '}
+                    <span className="text-amber-300">LOBSTR</span> browser
+                    extension, then come back.
+                  </div>
+                )}
+
                 {address && (
                   <p className="text-center font-mono text-[11px] text-stone-500">
                     {address.slice(0, 6)}…{address.slice(-4)}
@@ -190,7 +256,7 @@ export default function AuthDialog({
                   className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
                 >
                   {mode === 'signin'
-                    ? "New here? Create an account"
+                    ? 'New here? Create an account'
                     : 'Already have an account? Sign in'}
                 </button>
               </form>
@@ -198,6 +264,7 @@ export default function AuthDialog({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

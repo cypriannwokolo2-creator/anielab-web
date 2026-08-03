@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { connectFreighter, getNetworkDetails, signMessage } from './freighter'
+import { getNetworkDetails } from './freighter'
+import { getWallet, SignatureResult } from './wallets'
 import { createClient } from '@/lib/supabase/client'
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
@@ -12,12 +13,13 @@ export interface AuthSession {
 interface WalletState {
   address: string | null
   network: string | null
+  provider: string | null
   status: 'disconnected' | 'connecting' | 'connected'
   authStatus: 'idle' | 'signing' | 'authenticated'
   error: string | null
   session: AuthSession | null
-  connect: () => Promise<void>
-  signIn: () => Promise<void>
+  connect: (providerId: string) => Promise<void>
+  signIn: (providerId: string) => Promise<void>
   signOut: () => Promise<void>
   disconnect: () => void
 }
@@ -25,17 +27,27 @@ interface WalletState {
 export const useWalletStore = create<WalletState>((set, get) => ({
   address: null,
   network: null,
+  provider: null,
   status: 'disconnected',
   authStatus: 'idle',
   error: null,
   session: null,
 
-  connect: async () => {
+  connect: async (providerId: string) => {
+    const wallet = getWallet(providerId)
+    if (!wallet) {
+      set({ error: `Unknown wallet: ${providerId}` })
+      return
+    }
     set({ status: 'connecting', error: null })
     try {
-      const address = await connectFreighter()
-      const network = await getNetworkDetails()
-      set({ address, network: network.network, status: 'connected' })
+      const address = await wallet.getPublicKey()
+      let network: string | null = null
+      if (providerId === 'freighter') {
+        const details = await getNetworkDetails()
+        network = details.network
+      }
+      set({ address, provider: providerId, network, status: 'connected' })
     } catch (err) {
       set({
         status: 'disconnected',
@@ -44,17 +56,23 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
   },
 
-  // Wallet auth: challenge → sign message in Freighter → verify on backend.
-  // Backend mints a Supabase-compatible session token; we hand it to
-  // supabase-js so RLS and getUser() work for wallet users exactly like
-  // email users.
-  signIn: async () => {
+  // Wallet auth: challenge → sign message in the chosen wallet → verify on
+  // backend. The backend mints a Supabase-compatible token; we hand it to
+  // supabase-js so RLS and getUser() work for wallet users like email users.
+  signIn: async (providerId: string) => {
+    const wallet = getWallet(providerId)
+    if (!wallet) {
+      set({ error: `Unknown wallet: ${providerId}` })
+      return
+    }
     set({ authStatus: 'signing', error: null })
     try {
       let address = get().address
-      if (!address) {
-        address = await connectFreighter()
-        set({ address, status: 'connected' })
+      let provider = get().provider
+      if (!address || provider !== providerId) {
+        address = await wallet.getPublicKey()
+        provider = providerId
+        set({ address, provider, status: 'connected' })
       }
 
       const challengeRes = await fetch(`${BACKEND}/api/auth/challenge`, {
@@ -65,13 +83,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const challenge = await challengeRes.json()
       if (!challengeRes.ok) throw new Error(challenge.error ?? 'Challenge failed')
 
-      const res = await signMessage(challenge.message)
-      if (!res.signedMessage) throw new Error('No signature — did you approve the message in Freighter?')
-      // Freighter v3 returns a Buffer, v4 (SEP-30 SIWS) a base64 string
-      const signedMessage =
-        typeof res.signedMessage === 'string'
-          ? res.signedMessage
-          : res.signedMessage.toString('base64')
+      const sig: SignatureResult = await wallet.signMessage(challenge.message)
 
       const verifyRes = await fetch(`${BACKEND}/api/auth/verify`, {
         method: 'POST',
@@ -79,7 +91,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         body: JSON.stringify({
           stellarAddress: address,
           nonce: challenge.nonce,
-          signedMessage,
+          ...sig,
         }),
       })
       const result = await verifyRes.json()
@@ -115,5 +127,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   disconnect: () =>
-    set({ address: null, network: null, status: 'disconnected', authStatus: 'idle', session: null, error: null }),
+    set({
+      address: null,
+      network: null,
+      provider: null,
+      status: 'disconnected',
+      authStatus: 'idle',
+      session: null,
+      error: null,
+    }),
 }))
