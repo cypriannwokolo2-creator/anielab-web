@@ -4,7 +4,7 @@ import Logo from './Logo'
 const exploreLinks = [
   { href: '/#projects', label: 'Co-create' },
   { href: '/fund', label: 'Fund projects' },
-  { href: '/challenges', label: 'Run challenges' },
+  { href: '/challenges', label: 'Creative sprints' },
   { href: '/create', label: 'Start a project' },
 ]
 

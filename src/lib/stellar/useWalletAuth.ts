@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import { getNetworkDetails } from './freighter'
-import { getWallet, SignatureResult } from './wallets'
+import {
+  ensureConnected,
+  kitDisconnect,
+  kitGetNetwork,
+  signMessageWith,
+  stellarKitId,
+} from './wallets'
 import { createClient } from '@/lib/supabase/client'
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
@@ -34,16 +40,14 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   session: null,
 
   connect: async (providerId: string) => {
-    const wallet = getWallet(providerId)
-    if (!wallet) {
-      set({ error: `Unknown wallet: ${providerId}` })
-      return
-    }
     set({ status: 'connecting', error: null })
     try {
-      const address = await wallet.getPublicKey()
+      const { address } = await ensureConnected(providerId)
       let network: string | null = null
-      if (providerId === 'freighter') {
+      if (providerId === stellarKitId) {
+        const details = await kitGetNetwork()
+        network = details?.network ?? null
+      } else if (providerId === 'freighter') {
         const details = await getNetworkDetails()
         network = details.network
       }
@@ -59,18 +63,17 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   // Wallet auth: challenge → sign message in the chosen wallet → verify on
   // backend. The backend mints a Supabase-compatible token; we hand it to
   // supabase-js so RLS and getUser() work for wallet users like email users.
+  // providerId may be a specific extension ('freighter') or the Stellar
+  // Wallets Kit ('stellar-kit'), which lets the user pick any wallet — Freighter,
+  // Rabet, LOBSTR, xBull, Albedo, Hana, or WalletConnect.
   signIn: async (providerId: string) => {
-    const wallet = getWallet(providerId)
-    if (!wallet) {
-      set({ error: `Unknown wallet: ${providerId}` })
-      return
-    }
     set({ authStatus: 'signing', error: null })
     try {
       let address = get().address
       let provider = get().provider
       if (!address || provider !== providerId) {
-        address = await wallet.getPublicKey()
+        const res = await ensureConnected(providerId)
+        address = res.address
         provider = providerId
         set({ address, provider, status: 'connected' })
       }
@@ -83,7 +86,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const challenge = await challengeRes.json()
       if (!challengeRes.ok) throw new Error(challenge.error ?? 'Challenge failed')
 
-      const sig: SignatureResult = await wallet.signMessage(challenge.message)
+      const sig = await signMessageWith(providerId, challenge.message)
 
       const verifyRes = await fetch(`${BACKEND}/api/auth/verify`, {
         method: 'POST',
@@ -123,10 +126,14 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     } catch {
       // ignore — session is cleared regardless
     }
+    if (get().provider === stellarKitId) {
+      await kitDisconnect()
+    }
     set({ session: null, authStatus: 'idle', address: null, status: 'disconnected', error: null })
   },
 
-  disconnect: () =>
+  disconnect: () => {
+    void kitDisconnect()
     set({
       address: null,
       network: null,
@@ -135,5 +142,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       authStatus: 'idle',
       session: null,
       error: null,
-    }),
+    })
+  },
 }))

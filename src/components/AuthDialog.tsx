@@ -12,7 +12,8 @@ import {
   X,
 } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
-import { detectAvailableWallets, WalletAdapter } from '@/lib/stellar/wallets'
+import { detectAvailableWallets, stellarKitId, wallets } from '@/lib/stellar/wallets'
+import type { WalletAdapter } from '@/lib/stellar/wallets'
 import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'email' | 'wallet'
@@ -169,46 +170,67 @@ export default function AuthDialog({
             {tab === 'wallet' ? (
               <div className="mt-6 space-y-4">
                 <p className="text-sm text-stone-400">
-                  Pick any wallet you have installed. It will ask you to approve
-                  a message — that&apos;s all, no private keys leave your
-                  browser.
+                  Any Stellar wallet works — Freighter, LOBSTR, xBull, Rabet,
+                  Albedo, Hana, or anything on WalletConnect. No private keys
+                  leave your browser.
                 </p>
 
-                {checkingWallets ? (
-                  <div className="flex items-center justify-center gap-2 py-6 text-sm text-stone-500">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Looking for wallets…
-                  </div>
-                ) : availableWallets.length > 0 ? (
-                  <div className="space-y-2">
-                    {availableWallets.map((w) => {
-                      const Icon = walletIcons[w.id] ?? Wallet
-                      return (
-                        <button
-                          key={w.id}
-                          onClick={() => walletSignIn(w.id)}
-                          disabled={walletBusy}
-                          className="flex w-full items-center justify-between rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-left transition hover:border-amber-500/60 hover:bg-stone-800 disabled:opacity-60"
-                        >
-                          <span className="flex items-center gap-3">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950">
-                              <Icon className="h-4 w-4" />
-                            </span>
-                            <span className="font-medium">{w.name}</span>
+                {/* primary — full connect modal */}
+                <button
+                  onClick={() => walletSignIn(stellarKitId)}
+                  disabled={walletBusy}
+                  className="btn-drip flex w-full items-center justify-center gap-2 px-4 py-3.5 text-sm disabled:opacity-60"
+                >
+                  {walletBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wallet className="h-4 w-4" />
+                  )}
+                  Connect any wallet
+                </button>
+                <p className="text-center text-[11px] text-stone-500">
+                  Opens the Stellar wallet chooser — desktop extensions and
+                  mobile WalletConnect QR included.
+                </p>
+
+                <div className="flex items-center gap-3 py-1">
+                  <span className="h-px flex-1 bg-stone-800" />
+                  <span className="text-[11px] uppercase tracking-wider text-stone-500">
+                    or use an installed extension
+                  </span>
+                  <span className="h-px flex-1 bg-stone-800" />
+                </div>
+
+                <div className="space-y-2">
+                  {wallets.map((w) => {
+                    const Icon = walletIcons[w.id] ?? Wallet
+                    const detected = availableWallets.some((a) => a.id === w.id)
+                    return (
+                      <button
+                        key={w.id}
+                        onClick={() => walletSignIn(w.id)}
+                        disabled={!detected || walletBusy}
+                        className="flex w-full items-center justify-between rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-left transition hover:border-amber-500/60 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950">
+                            <Icon className="h-4 w-4" />
                           </span>
+                          <span className="font-medium">{w.name}</span>
+                        </span>
+                        {checkingWallets ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-stone-500" />
+                        ) : detected ? (
                           <span className="text-sm text-amber-400">Sign in →</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-stone-700 bg-stone-900/40 p-5 text-center text-sm text-stone-400">
-                    No Stellar wallet detected. Install the{' '}
-                    <span className="text-amber-300">Freighter</span>,{' '}
-                    <span className="text-amber-300">Rabet</span>, or{' '}
-                    <span className="text-amber-300">LOBSTR</span> browser
-                    extension, then come back.
-                  </div>
-                )}
+                        ) : (
+                          <span className="text-xs text-stone-500">
+                            Install the {w.name} extension
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
 
                 {address && (
                   <p className="text-center font-mono text-[11px] text-stone-500">

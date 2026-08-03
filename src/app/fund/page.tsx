@@ -79,19 +79,19 @@ export default function FundPage() {
 
       <div className="mt-16 rounded-3xl border border-amber-500/30 bg-stone-900/60 p-8 text-center">
         <h2 className="text-2xl font-bold">
-          A backer&apos;s ledger looks like this
+          What a backer&apos;s board looks like
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-stone-400">
-          The live contract on our landing page shows it already: two
-          contributors, a 60/40 split, and every transfer recorded on the
-          Stellar testnet. That&apos;s the same transparency your pledges get —
-          just with real projects.
+          The funding board on our landing page shows it already: real projects
+          with a goal, the amount funded, what&apos;s still needed, and every
+          transfer recorded on the Stellar testnet. That&apos;s the same
+          transparency your pledges get — just with real projects.
         </p>
         <Link
           href="/#contract"
           className="btn-drip-ghost bg-stone-900/60 px-6 py-2.5 text-sm"
         >
-          See the live contract →
+          See projects needing funding →
         </Link>
       </div>
     </div>

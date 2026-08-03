@@ -1,9 +1,11 @@
 import { ExternalLink } from 'lucide-react'
 import CopyButton from './CopyButton'
+import LedgerActions from './LedgerActions'
 import {
   CONTRACT_ID,
   NETWORK_PASSPHRASE,
   getContractState,
+  maskAddress,
   sharePct,
   shortenAddress,
 } from '@/lib/stellar/contractState'
@@ -78,18 +80,9 @@ export default async function ContractExplorer() {
                     <span className="text-xs uppercase tracking-wider text-stone-500">
                       Admin
                     </span>
-                    {state.admin ? (
-                      <a
-                        href={`https://stellar.expert/explorer/testnet/account/${state.admin}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-mono text-xs text-amber-300 hover:text-amber-200"
-                      >
-                        {shortenAddress(state.admin, 12)}
-                      </a>
-                    ) : (
-                      <span className="font-mono text-xs text-stone-500">not set</span>
-                    )}
+                    <span className="font-mono text-xs text-stone-300" title="Address hidden for privacy">
+                      {state.admin ? maskAddress(state.admin) : 'not set'}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900/50 px-4 py-3">
@@ -139,33 +132,54 @@ export default async function ContractExplorer() {
               {/* the split */}
               <div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-stone-500">
-                  Contributors &amp; split ({state.contributors.length})
+                  Top contributors ({state.contributors.length})
+                </p>
+                <p className="mt-1 text-xs text-stone-500">
+                  Ranked by share. Identities are kept private — connect a
+                  wallet to fund the project or apply to join the crew.
                 </p>
 
                 {state.contributors.length > 0 ? (
                   <div className="mt-4 space-y-4">
-                    {state.contributors.map((address, i) => {
-                      const share = state.shares[i] ?? 0n
-                      const pct = sharePct(share, state.totalShares)
-                      return (
-                        <div key={address}>
-                          <div className="mb-1.5 flex items-center justify-between font-mono text-xs">
-                            <span className="text-stone-300">
-                              {shortenAddress(address, 10)}
-                            </span>
-                            <span className="text-amber-400">
-                              {pct} · {share.toString()} / {state.totalShares.toString()}w
-                            </span>
+                    {state.contributors
+                      .map((address, i) => ({ address, share: state.shares[i] ?? 0n }))
+                      .sort((a, b) => (a.share < b.share ? 1 : a.share > b.share ? -1 : 0))
+                      .map(({ address, share }, i) => {
+                        const pct = sharePct(share, state.totalShares)
+                        const first = i === 0
+                        return (
+                          <div key={address}>
+                            <div className="mb-1.5 flex items-center justify-between gap-3 font-mono text-xs">
+                              <span className="flex items-center gap-2.5">
+                                <span
+                                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
+                                    first
+                                      ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
+                                      : 'bg-stone-800 text-stone-300'
+                                  }`}
+                                >
+                                  {i + 1}
+                                </span>
+                                <span
+                                  className={first ? 'text-amber-200' : 'text-stone-300'}
+                                  title="Identity hidden for privacy"
+                                >
+                                  Member {String(i + 1).padStart(2, '0')}
+                                </span>
+                              </span>
+                              <span className="text-amber-400">
+                                {pct} · {share.toString()} / {state.totalShares.toString()}w
+                              </span>
+                            </div>
+                            <div className="h-2.5 overflow-hidden rounded-full bg-stone-800">
+                              <div
+                                className="bar-grow h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500"
+                                style={{ width: pct }}
+                              />
+                            </div>
                           </div>
-                          <div className="h-2.5 overflow-hidden rounded-full bg-stone-800">
-                            <div
-                              className="bar-grow h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500"
-                              style={{ width: pct }}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
                   </div>
                 ) : (
                   <p className="mt-4 text-sm text-stone-500">
@@ -175,7 +189,7 @@ export default async function ContractExplorer() {
 
                 <p className="mt-6 border-t border-stone-800 pt-4 font-mono text-[11px] text-stone-500">
                   reads: soroban-testnet.stellar.org · typed via the generated
-                  revenue-splitter bindings
+                  revenue-splitter bindings · identities kept private
                 </p>
               </div>
             </div>
@@ -185,6 +199,9 @@ export default async function ContractExplorer() {
               <code className="text-stone-300">NEXT_PUBLIC_SOROBAN_RPC_URL</code>.
             </div>
           )}
+
+          {/* wallet-gated CTAs */}
+          <LedgerActions />
         </div>
       </div>
     </section>

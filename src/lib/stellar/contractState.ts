@@ -49,6 +49,12 @@ export function shortenAddress(address: string, chars = 6) {
   return `${address.slice(0, chars)}…${address.slice(-chars)}`
 }
 
+/** Privacy-masked address — first char + last 4, e.g. G••••••D3EG */
+export function maskAddress(address: string) {
+  if (address.length <= 10) return address
+  return `${address.slice(0, 1)}${'•'.repeat(6)}${address.slice(-4)}`
+}
+
 export function sharePct(share: bigint, total: bigint): string {
   if (total <= 0n) return '0%'
   return `${((share * 10000n) / total / 100n).toString()}%`

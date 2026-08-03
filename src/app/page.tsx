@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Check, Coins, Handshake, PenTool } from 'lucide-react'
-import ContractExplorer from '@/components/ContractExplorer'
+import FundingBoard from '@/components/FundingBoard'
 import ProjectCard from '@/components/ProjectCard'
 import RoleMarquee from '@/components/RoleMarquee'
 import FAQSection from '@/components/FAQSection'
@@ -158,7 +158,7 @@ export default async function Home() {
           <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-stone-500">
             Built on
           </span>
-          {['Stellar', 'Soroban', 'IPFS', 'Freighter', 'Supabase'].map((tech) => (
+          {['Stellar', 'Soroban', 'IPFS', 'WalletConnect', 'Supabase'].map((tech) => (
             <span
               key={tech}
               className="font-mono text-xs text-stone-400 transition hover:text-amber-300"
@@ -169,20 +169,22 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* live contract */}
+      {/* needs funding */}
       <div id="contract" className="scroll-mt-20 pb-16 pt-16">
         <div className="mx-auto max-w-6xl px-6 pb-6 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
-            The mechanism
+            Needs funding
           </p>
-          <h2 className="mt-3 text-3xl font-bold">One contract, doing the math</h2>
+          <h2 className="mt-3 text-3xl font-bold">
+            Put your money behind real projects
+          </h2>
           <p className="mx-auto mt-3 max-w-2xl text-stone-400">
-            This is a real project contract on the Stellar testnet — its
-            contributors and split percentages below are live, read directly
-            from the chain.
+            Every project below is live — its goal, funded amount, and remaining
+            balance are read straight from its contract on the Stellar testnet.
+            Fund one directly, and every payout stays public on-chain.
           </p>
         </div>
-        <ContractExplorer />
+        <FundingBoard projects={projects} />
       </div>
 
       {/* how it works */}
@@ -275,13 +277,13 @@ export default async function Home() {
         )}
       </section>
 
-      {/* backers & challenges */}
+      {/* backers & creative sprints */}
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <div className="mb-6 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
             Two sides of the same ledger
           </p>
-          <h2 className="mt-3 text-3xl font-bold">Fund it, or challenge the community</h2>
+          <h2 className="mt-3 text-3xl font-bold">Fund it, or run a creative sprint</h2>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           <Link
@@ -306,15 +308,16 @@ export default async function Home() {
             className="group rounded-3xl border border-stone-800 bg-stone-900/60 p-8 transition hover:border-amber-500/60"
           >
             <h3 className="text-2xl font-bold group-hover:text-amber-300">
-              Run a challenge
+              Run a creative sprint
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-stone-400">
-              Hackathon-style calls for your IP — fan art, boss music, a new
-              ending for episode three. Entries pinned to IPFS, prizes split
-              on-chain automatically when the clock runs out.
+              Time-boxed calls for your IP — fan art, boss music, a new ending
+              for episode three. Run one and invite the community, or apply to
+              join a sprint someone else is running. Entries pinned to IPFS,
+              prizes split on-chain automatically when the clock runs out.
             </p>
             <span className="mt-5 inline-block text-sm font-medium text-amber-400">
-              How challenges work →
+              How creative sprints work →
             </span>
           </Link>
         </div>
@@ -353,7 +356,7 @@ export default async function Home() {
                 href="#contract"
                 className="btn-drip-ghost bg-stone-900/60 px-7 py-3"
               >
-                See the live contract
+                See projects needing funding
               </Link>
             </div>
           </div>

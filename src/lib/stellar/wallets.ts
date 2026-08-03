@@ -20,6 +20,130 @@ export interface WalletAdapter {
   signMessage(message: string): Promise<SignatureResult>
 }
 
+/**
+ * The Stellar Wallets Kit — the modal that supports Freighter, Rabet, LOBSTR,
+ * Albedo, xBull, Hana, HOT and (via WalletConnect) every SEP-43 mobile wallet.
+ *
+ * It is loaded lazily (dynamic import) so its heavy deps (@reown/appkit,
+ * @walletconnect/sign-client) never execute during SSR.
+ */
+export const stellarKitId = 'stellar-kit'
+
+import type * as Swk from '@creit.tech/stellar-wallets-kit'
+
+type KitCore = {
+  StellarWalletsKit: typeof Swk.StellarWalletsKit
+  Networks: typeof Swk.Networks
+}
+
+let kitPromise: Promise<KitCore> | null = null
+let kitInitialized = false
+
+function loadKit(): Promise<KitCore> {
+  if (kitPromise) return kitPromise
+  const loaded = import('@creit.tech/stellar-wallets-kit') as unknown as Promise<KitCore>
+  kitPromise = loaded
+  return loaded
+}
+
+async function initKit(): Promise<KitCore> {
+  const kit = await loadKit()
+  if (kitInitialized) return kit
+
+  const { defaultModules } = await import(
+    '@creit.tech/stellar-wallets-kit/modules/utils'
+  )
+  let modules = defaultModules()
+  const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+  if (projectId) {
+    const { WalletConnectModule, WalletConnectTargetChain } = await import(
+      '@creit.tech/stellar-wallets-kit/modules/wallet-connect'
+    )
+    modules = [
+      ...modules,
+      new WalletConnectModule({
+        projectId,
+        metadata: {
+          name: 'AnieLab',
+          description:
+            'Co-create anime, comics & games — get paid exactly for your share.',
+          url: typeof window !== 'undefined' ? window.location.origin : 'https://anielab.xyz',
+          icons: [],
+        },
+        allowedChains: [WalletConnectTargetChain.TESTNET],
+      }),
+    ]
+  }
+
+  kit.StellarWalletsKit.init({
+    modules,
+    selectedWalletId: 'freighter',
+    network: kit.Networks.TESTNET,
+    authModal: { showInstallLabel: true },
+  })
+  kitInitialized = true
+  return kit
+}
+
+/** Opens the kit's connect modal and resolves with the chosen address + wallet id. */
+export async function connectWithKit(): Promise<{ address: string; walletId: string }> {
+  const kit = await initKit()
+  const { address } = await kit.StellarWalletsKit.authModal()
+  const walletId = kit.StellarWalletsKit.selectedModule?.productId ?? stellarKitId
+  return { address, walletId }
+}
+
+export async function kitSignMessage(message: string): Promise<SignatureResult> {
+  const kit = await initKit()
+  const { signedMessage } = await kit.StellarWalletsKit.signMessage(message, {
+    networkPassphrase: kit.Networks.TESTNET,
+  })
+  return { signedMessage }
+}
+
+export async function kitGetNetwork(): Promise<{ network: string; networkPassphrase: string } | null> {
+  try {
+    const kit = await initKit()
+    return await kit.StellarWalletsKit.getNetwork()
+  } catch {
+    return null
+  }
+}
+
+export async function kitDisconnect(): Promise<void> {
+  try {
+    const kit = await initKit()
+    await kit.StellarWalletsKit.disconnect()
+  } catch {
+    // ignore — session is cleared regardless
+  }
+}
+
+/** Ensure a connection exists for the given provider and return its address. */
+export async function ensureConnected(
+  providerId: string
+): Promise<{ address: string; walletId: string }> {
+  if (providerId === stellarKitId) {
+    return connectWithKit()
+  }
+  const wallet = getWallet(providerId)
+  if (!wallet) throw new Error(`Unknown wallet: ${providerId}`)
+  const address = await wallet.getPublicKey()
+  return { address, walletId: providerId }
+}
+
+export async function signMessageWith(
+  providerId: string,
+  message: string
+): Promise<SignatureResult> {
+  if (providerId === stellarKitId) {
+    return kitSignMessage(message)
+  }
+  const wallet = getWallet(providerId)
+  if (!wallet) throw new Error(`Unknown wallet: ${providerId}`)
+  return wallet.signMessage(message)
+}
+
 /* ------------------------------------------------------------------ */
 /* Freighter — official extension API                                  */
 /* ------------------------------------------------------------------ */
@@ -150,6 +274,7 @@ export const lobstrAdapter: WalletAdapter = {
 
 /* ------------------------------------------------------------------ */
 
+/** Quick-access extension wallets shown under the kit's "Connect any wallet" button. */
 export const wallets: WalletAdapter[] = [freighterAdapter, rabetAdapter, lobstrAdapter]
 
 export function getWallet(id: string): WalletAdapter | undefined {

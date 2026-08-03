@@ -24,9 +24,9 @@ const exploreItems = [
   },
   {
     href: '/challenges',
-    title: 'Run challenges',
+    title: 'Creative sprints',
     description:
-      'Hackathon-style contests for your IP — fan art, music, story — with rewards split automatically.',
+      'Run a time-boxed creative sprint for your IP — or apply to join one. Rewards split automatically.',
     soon: false,
   },
   {
@@ -45,7 +45,7 @@ const exploreItems = [
 
 const topLinks = [
   { href: '/#how', label: 'How it works' },
-  { href: '/#contract', label: 'Live contract' },
+  { href: '/#contract', label: 'Needs funding' },
 ]
 
 export default function Header() {

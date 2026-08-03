@@ -1,22 +1,28 @@
 import Link from 'next/link'
-import { CalendarDays, Medal, MousePointerClick } from 'lucide-react'
+import { CalendarDays, Medal, MousePointerClick, UserPlus } from 'lucide-react'
 
 export const metadata = {
-  title: 'Challenges & Hackathons | AnieLab',
+  title: 'Creative Sprints | AnieLab',
   description:
-    'Run themed creation challenges — like hackathons for your IP. Submissions pinned to IPFS, rewards split on-chain automatically.',
+    'Run a time-boxed creative sprint for your IP — or apply to join one. Submissions pinned to IPFS, rewards split on-chain automatically.',
 }
 
 const steps = [
   {
     icon: CalendarDays,
-    title: 'Set the challenge',
+    title: 'Set the sprint',
     description:
       'Pick a theme from your IP — “design the rival mech”, “compose the boss-fight theme”, “write the festival episode”. Set a deadline and a reward pot.',
   },
   {
+    icon: UserPlus,
+    title: 'Creators apply to join',
+    description:
+      'Open the sprint to your community. Anyone can apply — solo artists or a whole crew — and you approve who joins before the clock starts.',
+  },
+  {
     icon: MousePointerClick,
-    title: 'Creators submit on-chain',
+    title: 'Submissions land on-chain',
     description:
       'Every entry is pinned to IPFS with its creator’s name attached. No lost files, no anonymous submissions — the credit list builds itself.',
   },
@@ -24,7 +30,7 @@ const steps = [
     icon: Medal,
     title: 'Rewards split automatically',
     description:
-      'When the challenge closes, the pot is distributed to the winners — or split across ranked entries — by the contract. Public, automatic, no payout drama.',
+      'When the sprint closes, the pot is distributed to the winners — or split across ranked entries — by the contract. Public, automatic, no payout drama.',
   },
 ]
 
@@ -36,12 +42,12 @@ export default function ChallengesPage() {
           Launching soon
         </p>
         <h1 className="mt-3 text-4xl font-bold sm:text-5xl">
-          Run a challenge — a hackathon for your IP.
+          Run a creative sprint — or apply to join one.
         </h1>
         <p className="mt-5 text-lg text-stone-400">
-          Open a themed call to your community — fan art, boss music, a new
+          Open a time-boxed call to your community — fan art, boss music, a new
           ending for episode three — and let the contract handle the prizes.
-          The same infrastructure that splits project revenue powers challenges,
+          The same infrastructure that splits project revenue powers sprints,
           so rewards land automatically and nobody has to chase a payout.
         </p>
         <div className="mt-8 flex flex-wrap gap-4">
@@ -60,7 +66,7 @@ export default function ChallengesPage() {
         </div>
       </div>
 
-      <div className="mt-16 grid gap-6 md:grid-cols-3">
+      <div className="mt-16 grid gap-6 md:grid-cols-2">
         {steps.map((s, i) => (
           <div
             key={s.title}
@@ -78,15 +84,25 @@ export default function ChallengesPage() {
             </p>
           </div>
         ))}
+
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 text-center">
+          <p className="text-sm leading-relaxed text-stone-300">
+            A sprint runs on the same contract as a project — so the pot, the
+            entries, and the payouts all stay public.
+          </p>
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-medium text-amber-300">
+            run one · or apply to join
+          </span>
+        </div>
       </div>
 
       <div className="mt-16 rounded-3xl border border-amber-500/30 bg-stone-900/60 p-8 text-center">
-        <h2 className="text-2xl font-bold">Challenges are in the works</h2>
+        <h2 className="text-2xl font-bold">Sprints are in the works</h2>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-stone-400">
-          We&apos;re building challenges on top of the revenue-splitting
+          We&apos;re building sprints on top of the revenue-splitting
           contract, so the payout logic gets tested by real projects first.
           The fastest way to be ready: start a project, grow a crew, and
-          you&apos;ll have a community to challenge.
+          you&apos;ll have a community to sprint with.
         </p>
       </div>
     </div>
