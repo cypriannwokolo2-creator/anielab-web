@@ -1,28 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import {
-  Loader2,
-  Mail,
-  Rabbit,
-  Rocket,
-  Wallet,
-  X,
-} from 'lucide-react'
+import { Loader2, Mail, Wallet, X } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
-import { detectAvailableWallets, stellarKitId, wallets } from '@/lib/stellar/wallets'
-import type { WalletAdapter } from '@/lib/stellar/wallets'
 import { createClient } from '@/lib/supabase/client'
+import WalletPicker from './WalletPicker'
 
 type Tab = 'email' | 'wallet'
-
-const walletIcons: Record<string, typeof Wallet> = {
-  freighter: Wallet,
-  rabet: Rabbit,
-  lobstr: Rocket,
-}
 
 export default function AuthDialog({
   open,
@@ -36,25 +22,8 @@ export default function AuthDialog({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [availableWallets, setAvailableWallets] = useState<WalletAdapter[]>([])
-  const [checkingWallets, setCheckingWallets] = useState(true)
 
   const { address, status, authStatus, error, signIn } = useWalletStore()
-
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    detectAvailableWallets()
-      .then((found) => {
-        if (!cancelled) setAvailableWallets(found)
-      })
-      .finally(() => {
-        if (!cancelled) setCheckingWallets(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open])
 
   // The dialog only ever renders after a user click (open=true), so this is
   // always client-side — document.body is safe here, and SSR never reaches it.
@@ -170,73 +139,19 @@ export default function AuthDialog({
             {tab === 'wallet' ? (
               <div className="mt-6 space-y-4">
                 <p className="text-sm text-stone-400">
-                  Any Stellar wallet works — Freighter, LOBSTR, xBull, Rabet,
-                  Albedo, Hana, or anything on WalletConnect. No private keys
-                  leave your browser.
+                  Pick a wallet to connect — Freighter, LOBSTR, xBull, Rabet,
+                  Albedo, Hana, and more. Your public address is used as your
+                  AnieLab account.
                 </p>
 
-                {/* primary — full connect modal */}
-                <button
-                  onClick={() => walletSignIn(stellarKitId)}
-                  disabled={walletBusy}
-                  className="btn-drip flex w-full items-center justify-center gap-2 px-4 py-3.5 text-sm disabled:opacity-60"
-                >
-                  {walletBusy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Wallet className="h-4 w-4" />
-                  )}
-                  Connect any wallet
-                </button>
-                <p className="text-center text-[11px] text-stone-500">
-                  Opens the Stellar wallet chooser — desktop extensions and
-                  mobile WalletConnect QR included.
-                </p>
-
-                <div className="flex items-center gap-3 py-1">
-                  <span className="h-px flex-1 bg-stone-800" />
-                  <span className="text-[11px] uppercase tracking-wider text-stone-500">
-                    or use an installed extension
-                  </span>
-                  <span className="h-px flex-1 bg-stone-800" />
-                </div>
-
-                <div className="space-y-2">
-                  {wallets.map((w) => {
-                    const Icon = walletIcons[w.id] ?? Wallet
-                    const detected = availableWallets.some((a) => a.id === w.id)
-                    return (
-                      <button
-                        key={w.id}
-                        onClick={() => walletSignIn(w.id)}
-                        disabled={!detected || walletBusy}
-                        className="flex w-full items-center justify-between rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-left transition hover:border-amber-500/60 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <span className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950">
-                            <Icon className="h-4 w-4" />
-                          </span>
-                          <span className="font-medium">{w.name}</span>
-                        </span>
-                        {checkingWallets ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-stone-500" />
-                        ) : detected ? (
-                          <span className="text-sm text-amber-400">Sign in →</span>
-                        ) : (
-                          <span className="text-xs text-stone-500">
-                            Install the {w.name} extension
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {address && (
-                  <p className="text-center font-mono text-[11px] text-stone-500">
-                    {address.slice(0, 6)}…{address.slice(-4)}
-                  </p>
+                {walletBusy ? (
+                  <div className="flex items-center justify-center gap-2 rounded-xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-sm text-stone-400">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Connecting…
+                  </div>
+                ) : (
+                  <WalletPicker onSelect={walletSignIn} />
                 )}
+
                 {error && <p className="text-center text-xs text-red-400">{error}</p>}
               </div>
             ) : (

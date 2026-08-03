@@ -86,7 +86,43 @@ async function initKit(): Promise<KitCore> {
   return kit
 }
 
-/** Opens the kit's connect modal and resolves with the chosen address + wallet id. */
+/** A wallet entry shown in our own picker (kit's list, rendered in our theme). */
+export interface WalletOption {
+  id: string
+  name: string
+  icon: string
+  url: string
+  isAvailable: boolean
+}
+
+/**
+ * All wallets the kit supports, with real availability + install links.
+ * We render these in our own modal instead of opening the kit's built-in one,
+ * so the picker looks identical everywhere on the site.
+ */
+export async function getKitWallets(): Promise<WalletOption[]> {
+  const kit = await initKit()
+  const supported = await kit.StellarWalletsKit.refreshSupportedWallets()
+  return supported.map((w) => ({
+    id: w.id,
+    name: w.name,
+    icon: w.icon,
+    url: w.url,
+    isAvailable: w.isAvailable,
+  }))
+}
+
+/** Connects a specific wallet directly (no kit modal): selects the module, then fetches the address. */
+export async function connectWithKitWallet(
+  walletId: string
+): Promise<{ address: string; walletId: string }> {
+  const kit = await initKit()
+  kit.StellarWalletsKit.setWallet(walletId)
+  const { address } = await kit.StellarWalletsKit.fetchAddress()
+  return { address, walletId }
+}
+
+/** Opens the kit's connect modal (legacy "connect any wallet" fallback). */
 export async function connectWithKit(): Promise<{ address: string; walletId: string }> {
   const kit = await initKit()
   const { address } = await kit.StellarWalletsKit.authModal()
@@ -135,7 +171,11 @@ export async function signTransactionWith(
     if (!res.signedTxXdr) throw new Error(res.error?.message ?? 'Freighter did not return a signed transaction')
     return { signedTxXdr: res.signedTxXdr, signerAddress: res.signerAddress }
   }
-  throw new Error(`Transaction signing not supported for wallet: ${providerId}`)
+  // Any kit wallet (xBull, LOBSTR, Albedo, …) — the selected module is already
+  // set by connectWithKitWallet, so signing routes through the kit.
+  const kit = await initKit()
+  const res = await kit.StellarWalletsKit.signTransaction(txXdr, { networkPassphrase })
+  return { signedTxXdr: res.signedTxXdr, signerAddress: res.signerAddress }
 }
 
 export async function kitDisconnect(): Promise<void> {
@@ -155,9 +195,12 @@ export async function ensureConnected(
     return connectWithKit()
   }
   const wallet = getWallet(providerId)
-  if (!wallet) throw new Error(`Unknown wallet: ${providerId}`)
-  const address = await wallet.getPublicKey()
-  return { address, walletId: providerId }
+  if (wallet) {
+    const address = await wallet.getPublicKey()
+    return { address, walletId: providerId }
+  }
+  // Any other id comes from the kit's wallet list — connect directly, no modal.
+  return connectWithKitWallet(providerId)
 }
 
 export async function signMessageWith(
@@ -168,8 +211,10 @@ export async function signMessageWith(
     return kitSignMessage(message)
   }
   const wallet = getWallet(providerId)
-  if (!wallet) throw new Error(`Unknown wallet: ${providerId}`)
-  return wallet.signMessage(message)
+  if (wallet) {
+    return wallet.signMessage(message)
+  }
+  return kitSignMessage(message)
 }
 
 /* ------------------------------------------------------------------ */

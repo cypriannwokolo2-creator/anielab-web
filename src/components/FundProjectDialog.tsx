@@ -6,14 +6,11 @@ import { toast } from 'sonner'
 import {
   HandCoins,
   Loader2,
-  Lock,
   QrCode,
   Smartphone,
-  Wallet,
   X,
 } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
-import { detectAvailableWallets, stellarKitId, wallets } from '@/lib/stellar/wallets'
 import {
   formatUsdc,
   getXlmUsdcRate,
@@ -21,6 +18,7 @@ import {
   type PledgeCurrency,
 } from '@/lib/stellar/usdc'
 import { sendUsdcPledge } from '@/lib/stellar/pledge'
+import WalletPicker from './WalletPicker'
 import type { FundingProject } from './FundingBoard'
 
 const walletApps = [
@@ -40,10 +38,8 @@ export default function FundProjectDialog({ project }: { project: FundingProject
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState<PledgeCurrency>('USDC')
   const [rate, setRate] = useState<number | null>(null)
-  const [available, setAvailable] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const { address, status, authStatus, provider, connect, signIn, signOut } =
-    useWalletStore()
+  const { address, status, authStatus, provider, signIn, signOut } = useWalletStore()
 
   const mobile = isMobile()
   const walletBusy = status === 'connecting' || authStatus === 'signing'
@@ -52,17 +48,6 @@ export default function FundProjectDialog({ project }: { project: FundingProject
   const remaining = goal > project.funded ? goal - project.funded : 0n
 
   const rawUsdc = pledgeToUsdcRaw(amount, currency, rate ?? 0)
-
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    detectAvailableWallets().then((found) => {
-      if (!cancelled) setAvailable(found.map((w) => w.id))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [open])
 
   // Refresh the XLM→USDC rate whenever the dialog opens or the currency flips
   // to XLM, so the conversion preview (and the final USDC amount) is current.
@@ -77,15 +62,8 @@ export default function FundProjectDialog({ project }: { project: FundingProject
     }
   }, [open, currency])
 
-  async function handleConnect() {
-    await connect(stellarKitId)
-    if (useWalletStore.getState().status === 'connected') {
-      toast.success('Wallet connected.')
-    }
-  }
-
-  async function handleSignIn() {
-    const providerId = useWalletStore.getState().provider ?? stellarKitId
+  // Connect + sign-in in one step, straight from the shared wallet picker.
+  async function handleWalletSelected(providerId: string) {
     await signIn(providerId)
     if (useWalletStore.getState().authStatus === 'authenticated') {
       toast.success('Signed in with wallet.')
@@ -115,7 +93,7 @@ export default function FundProjectDialog({ project }: { project: FundingProject
 
     setSubmitting(true)
     try {
-      const providerId = provider ?? stellarKitId
+      const providerId = provider ?? 'freighter'
       const { hash, toXdr } = await sendUsdcPledge({
         providerId,
         publicKey: address,
@@ -181,30 +159,17 @@ export default function FundProjectDialog({ project }: { project: FundingProject
 
               {!connected ? (
                 <div className="mt-6 space-y-4">
-                  <button
-                    onClick={handleConnect}
-                    disabled={walletBusy}
-                    className="btn-drip flex w-full items-center justify-center gap-2 px-4 py-3.5 text-sm disabled:opacity-60"
-                  >
-                    {walletBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Wallet className="h-4 w-4" />
-                    )}
-                    Connect wallet to fund
-                  </button>
-                  <p className="text-center text-[11px] leading-relaxed text-stone-500">
-                    Detects your installed wallets on desktop, and shows a QR /
-                    deep link on mobile to open the wallet app.
+                  <p className="text-sm text-stone-400">
+                    Connect a wallet to pledge. Your address signs the transfer
+                    into the project contract — the site never touches your keys.
                   </p>
 
-                  {available.length > 0 && (
-                    <div className="rounded-xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs text-stone-400">
-                      Detected:{' '}
-                      {available
-                        .map((id) => wallets.find((w) => w.id === id)?.name ?? id)
-                        .join(' · ')}
+                  {walletBusy ? (
+                    <div className="flex items-center justify-center gap-2 rounded-xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-sm text-stone-400">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Connecting…
                     </div>
+                  ) : (
+                    <WalletPicker onSelect={handleWalletSelected} />
                   )}
 
                   {mobile ? (
@@ -213,8 +178,8 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                         <Smartphone className="h-3.5 w-3.5" /> On mobile?
                       </p>
                       <p className="mt-1 text-[11px] leading-relaxed text-stone-400">
-                        Pick LOBSTR or xBull in the wallet chooser and your wallet
-                        app will open automatically.
+                        Pick LOBSTR or xBull from the list and your wallet app
+                        will open automatically.
                       </p>
                     </div>
                   ) : null}
@@ -222,7 +187,7 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                   <div className="flex items-center gap-3 py-1">
                     <span className="h-px flex-1 bg-stone-800" />
                     <span className="text-[11px] uppercase tracking-wider text-stone-500">
-                      {mobile ? 'Or get a wallet app' : 'No wallet yet?'}
+                      New to Stellar?
                     </span>
                     <span className="h-px flex-1 bg-stone-800" />
                   </div>
@@ -240,21 +205,6 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                       </a>
                     ))}
                   </div>
-
-                  {status === 'connected' && authStatus !== 'authenticated' ? (
-                    <button
-                      onClick={handleSignIn}
-                      disabled={walletBusy}
-                      className="btn-drip-ghost flex w-full items-center justify-center gap-2 bg-stone-900/60 px-4 py-2.5 text-sm"
-                    >
-                      {walletBusy ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Lock className="h-4 w-4" />
-                      )}
-                      Wallet connected — sign in to continue
-                    </button>
-                  ) : null}
 
                   {address && (
                     <p className="text-center font-mono text-[11px] text-stone-500">
