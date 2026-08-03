@@ -203,7 +203,7 @@ export default async function Home() {
       </section>
 
       {/* projects */}
-      <section className="mx-auto max-w-6xl px-6 pb-24">
+      <section id="projects" className="mx-auto max-w-6xl scroll-mt-20 px-6 pb-24">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
@@ -248,6 +248,51 @@ export default async function Home() {
             </Link>
           </div>
         )}
+      </section>
+
+      {/* backers & challenges */}
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="mb-6 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
+            Two sides of the same ledger
+          </p>
+          <h2 className="mt-3 text-3xl font-bold">Fund it, or challenge the community</h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Link
+            href="/fund"
+            className="group rounded-3xl border border-stone-800 bg-stone-900/60 p-8 transition hover:border-amber-500/60"
+          >
+            <h3 className="text-2xl font-bold group-hover:text-amber-300">
+              Back a project
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-400">
+              Movies, comics, games, and music get made because someone pays for
+              them to exist. Pledge straight into the project&apos;s contract —
+              no middleman, no custodial wallet — and watch every payout land in
+              public.
+            </p>
+            <span className="mt-5 inline-block text-sm font-medium text-amber-400">
+              See how funding works →
+            </span>
+          </Link>
+          <Link
+            href="/challenges"
+            className="group rounded-3xl border border-stone-800 bg-stone-900/60 p-8 transition hover:border-amber-500/60"
+          >
+            <h3 className="text-2xl font-bold group-hover:text-amber-300">
+              Run a challenge
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-400">
+              Hackathon-style calls for your IP — fan art, boss music, a new
+              ending for episode three. Entries pinned to IPFS, prizes split
+              on-chain automatically when the clock runs out.
+            </p>
+            <span className="mt-5 inline-block text-sm font-medium text-amber-400">
+              How challenges work →
+            </span>
+          </Link>
+        </div>
       </section>
 
       {/* faq */}
@@ -313,8 +358,22 @@ export default async function Home() {
 
       {/* footer */}
       <footer className="border-t border-stone-800 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-stone-500 sm:flex-row">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 text-sm text-stone-500 md:flex-row">
           <span>AnieLab — Web3 co-creation for indie creators</span>
+          <nav className="flex flex-wrap items-center justify-center gap-5 text-xs">
+            <Link href="/#projects" className="transition hover:text-amber-300">
+              Projects
+            </Link>
+            <Link href="/fund" className="transition hover:text-amber-300">
+              Fund
+            </Link>
+            <Link href="/challenges" className="transition hover:text-amber-300">
+              Challenges
+            </Link>
+            <Link href="/create" className="transition hover:text-amber-300">
+              Start a project
+            </Link>
+          </nav>
           <span className="font-mono text-xs">
             contracts / anielab-contracts · backend / anielab-backend · web / anielab-web
           </span>
