@@ -14,7 +14,13 @@ import {
 } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import { detectAvailableWallets, stellarKitId, wallets } from '@/lib/stellar/wallets'
-import { formatUsdc, usdcToRaw } from '@/lib/stellar/usdc'
+import {
+  formatUsdc,
+  getXlmUsdcRate,
+  pledgeToUsdcRaw,
+  type PledgeCurrency,
+} from '@/lib/stellar/usdc'
+import { sendUsdcPledge } from '@/lib/stellar/pledge'
 import type { FundingProject } from './FundingBoard'
 
 const walletApps = [
@@ -32,14 +38,20 @@ function isMobile() {
 export default function FundProjectDialog({ project }: { project: FundingProject }) {
   const [open, setOpen] = useState(false)
   const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState<PledgeCurrency>('USDC')
+  const [rate, setRate] = useState<number | null>(null)
   const [available, setAvailable] = useState<string[]>([])
-  const { address, status, authStatus, connect, signIn, signOut } = useWalletStore()
+  const [submitting, setSubmitting] = useState(false)
+  const { address, status, authStatus, provider, connect, signIn, signOut } =
+    useWalletStore()
 
   const mobile = isMobile()
   const walletBusy = status === 'connecting' || authStatus === 'signing'
   const connected = status === 'connected' && authStatus === 'authenticated'
   const goal = project.fundingGoal ?? 0n
   const remaining = goal > project.funded ? goal - project.funded : 0n
+
+  const rawUsdc = pledgeToUsdcRaw(amount, currency, rate ?? 0)
 
   useEffect(() => {
     if (!open) return
@@ -52,6 +64,19 @@ export default function FundProjectDialog({ project }: { project: FundingProject
     }
   }, [open])
 
+  // Refresh the XLM→USDC rate whenever the dialog opens or the currency flips
+  // to XLM, so the conversion preview (and the final USDC amount) is current.
+  useEffect(() => {
+    if (!open || currency !== 'XLM') return
+    let cancelled = false
+    getXlmUsdcRate().then((r) => {
+      if (!cancelled) setRate(r)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, currency])
+
   async function handleConnect() {
     await connect(stellarKitId)
     if (useWalletStore.getState().status === 'connected') {
@@ -60,22 +85,61 @@ export default function FundProjectDialog({ project }: { project: FundingProject
   }
 
   async function handleSignIn() {
-    const provider = useWalletStore.getState().provider ?? stellarKitId
-    await signIn(provider)
+    const providerId = useWalletStore.getState().provider ?? stellarKitId
+    await signIn(providerId)
     if (useWalletStore.getState().authStatus === 'authenticated') {
       toast.success('Signed in with wallet.')
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const raw = usdcToRaw(amount)
-    if (raw == null) {
-      toast.error('Enter a valid USDC amount.')
+    if (!project.contractId) {
+      toast.error('This project has no live contract to receive funding yet.')
       return
     }
-    toast.info('Pledge flow coming next — this will sign a USDC transfer from your wallet into the project contract.')
-    setOpen(false)
+    if (!address) {
+      toast.error('Connect a wallet first.')
+      return
+    }
+    if (currency === 'XLM' && rate == null) {
+      toast.error('Fetching the XLM→USDC rate — try again in a second.')
+      return
+    }
+
+    const raw = pledgeToUsdcRaw(amount, currency, rate ?? 0)
+    if (raw == null || raw <= 0n) {
+      toast.error(`Enter a valid ${currency} amount.`)
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const providerId = provider ?? stellarKitId
+      const { hash, toXdr } = await sendUsdcPledge({
+        providerId,
+        publicKey: address,
+        toContractId: project.contractId,
+        amountUsdc: raw,
+      })
+      const label = currency === 'XLM' ? `${amount} XLM (≈$${formatUsdc(raw)} USDC)` : `$${formatUsdc(raw)}`
+      toast.success(`Pledged ${label} to ${project.title} — on-chain!`)
+      if (hash) {
+        toast.info(`Tx: ${hash.slice(0, 16)}… · verify on stellar.expert`, {
+          duration: 9000,
+        })
+      } else if (toXdr) {
+        console.info('Pledge submitted, awaiting confirmation:', toXdr.slice(0, 40))
+      }
+      setAmount('')
+      setOpen(false)
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message ? err.message : 'Pledge failed — check your wallet and try again.'
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -206,12 +270,14 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                       {address?.slice(0, 6)}…{address?.slice(-4)}
                     </span>
                   </div>
-                  <label className="block">
-                    <span className="text-sm font-medium text-stone-300">
-                      Amount (USDC)
-                    </span>
-                    <div className="mt-1 flex items-center rounded-xl border border-stone-700 bg-stone-900 focus-within:border-amber-500">
-                      <span className="pl-4 text-sm text-stone-500">$</span>
+
+                  {/* currency toggle */}
+                  <div>
+                    <span className="text-sm font-medium text-stone-300">Amount</span>
+                    <div
+                      className="mt-1 flex items-center gap-2 rounded-xl border border-stone-700 bg-stone-900 p-1 focus-within:border-amber-500"
+                      style={{ borderRadius: '0.9rem 0 0.9rem 0.9rem' }}
+                    >
                       <input
                         type="number"
                         min="0.01"
@@ -219,16 +285,65 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                         required
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
-                        className="w-full rounded-xl bg-transparent px-2 py-2.5 text-sm outline-none"
-                        placeholder="10.00"
+                        className="w-full bg-transparent px-3 py-2 text-sm outline-none"
+                        placeholder={currency === 'XLM' ? '25.00' : '10.00'}
                       />
+                      <div className="flex shrink-0 gap-1">
+                        {(['USDC', 'XLM'] as const).map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setCurrency(c)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                              currency === c
+                                ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
+                                : 'text-stone-400 hover:text-white'
+                            }`}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </label>
+                  </div>
+
+                  {/* conversion preview — the on-chain transfer is always USDC */}
+                  <div className="rounded-xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs">
+                    {currency === 'XLM' ? (
+                      rate == null ? (
+                        <p className="text-stone-500">Loading XLM→USDC rate…</p>
+                      ) : rawUsdc != null ? (
+                        <p className="text-stone-400">
+                          {amount} XLM ≈ <span className="font-mono text-amber-300">${formatUsdc(rawUsdc)} USDC</span>
+                        </p>
+                      ) : (
+                        <p className="text-stone-500">Enter an amount to see the USDC value.</p>
+                      )
+                    ) : (
+                      <p className="text-stone-400">
+                        Paid as <span className="font-mono text-amber-300">USDC</span> — the
+                        project contract only accepts USDC, so every pledge settles on-chain in
+                        USDC.
+                      </p>
+                    )}
+                    {currency === 'XLM' && rate != null && (
+                      <p className="mt-1 text-[11px] text-stone-600">
+                        1 XLM ≈ ${rate.toFixed(4)} USDC (live orderbook rate)
+                      </p>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
-                    className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm"
+                    disabled={submitting}
+                    className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
                   >
-                    <HandCoins className="h-4 w-4" /> Pledge ${amount || '0'} to {project.title}
+                    {submitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <HandCoins className="h-4 w-4" />
+                    )}
+                    Pledge {amount ? `${amount} ${currency}` : '…'} to {project.title}
                   </button>
                   <button
                     type="button"

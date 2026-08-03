@@ -3,6 +3,7 @@ import {
   requestAccess,
   getAddress,
   signMessage as freighterSignMessage,
+  signTransaction as freighterSignTransaction,
 } from '@stellar/freighter-api'
 
 export interface SignatureResult {
@@ -108,6 +109,33 @@ export async function kitGetNetwork(): Promise<{ network: string; networkPassphr
   } catch {
     return null
   }
+}
+
+export interface SignedTransaction {
+  signedTxXdr: string
+  signerAddress?: string
+}
+
+/**
+ * Signs a built transaction XDR with the connected wallet. Works through the
+ * kit (any wallet the user picked) or directly through a specific extension.
+ */
+export async function signTransactionWith(
+  providerId: string,
+  txXdr: string,
+  networkPassphrase: string
+): Promise<SignedTransaction> {
+  if (providerId === stellarKitId) {
+    const kit = await initKit()
+    const res = await kit.StellarWalletsKit.signTransaction(txXdr, { networkPassphrase })
+    return { signedTxXdr: res.signedTxXdr, signerAddress: res.signerAddress }
+  }
+  if (providerId === 'freighter') {
+    const res = await freighterSignTransaction(txXdr, { networkPassphrase })
+    if (!res.signedTxXdr) throw new Error(res.error?.message ?? 'Freighter did not return a signed transaction')
+    return { signedTxXdr: res.signedTxXdr, signerAddress: res.signerAddress }
+  }
+  throw new Error(`Transaction signing not supported for wallet: ${providerId}`)
 }
 
 export async function kitDisconnect(): Promise<void> {
