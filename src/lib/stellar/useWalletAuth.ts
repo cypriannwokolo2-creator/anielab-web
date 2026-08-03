@@ -13,6 +13,7 @@ const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
 
 export interface AuthSession {
   accessToken: string
+  refreshToken: string
   user: { id: string; stellar_address: string; auth_method: string } | null
 }
 
@@ -24,6 +25,8 @@ interface WalletState {
   authStatus: 'idle' | 'signing' | 'authenticated'
   error: string | null
   session: AuthSession | null
+  hydrated: boolean
+  restoreSession: () => Promise<void>
   connect: (providerId: string) => Promise<void>
   signIn: (providerId: string) => Promise<void>
   signOut: () => Promise<void>
@@ -38,6 +41,41 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   authStatus: 'idle',
   error: null,
   session: null,
+  hydrated: false,
+
+  // Restore a persisted Supabase session from cookies (set by @supabase/ssr
+  // during verifyOtp) so a page refresh keeps the user signed in.
+  restoreSession: async () => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session?.user) {
+        const meta = session.user.user_metadata as Record<string, unknown> | undefined
+        set({
+          session: {
+            accessToken: session.access_token,
+            refreshToken: session.refresh_token,
+            user: {
+              id: session.user.id,
+              stellar_address:
+                typeof meta?.stellar_address === 'string' ? meta.stellar_address : '',
+              auth_method: 'wallet',
+            },
+          },
+          authStatus: 'authenticated',
+          address:
+            typeof meta?.stellar_address === 'string' ? meta.stellar_address : null,
+          status: 'connected',
+        })
+      }
+    } catch {
+      // ignore — treat as signed out
+    } finally {
+      set({ hydrated: true })
+    }
+  },
 
   connect: async (providerId: string) => {
     set({ status: 'connecting', error: null })
@@ -61,8 +99,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   // Wallet auth: challenge → sign message in the chosen wallet → verify on
-  // backend. The backend mints a Supabase-compatible token; we hand it to
-  // supabase-js so RLS and getUser() work for wallet users like email users.
+  // backend. The backend verifies the signature and returns a magic-link
+  // token; we exchange it for a real Supabase session (access + refresh
+  // tokens) which @supabase/ssr persists as cookies, so RLS and getUser()
+  // work for wallet users exactly like email users — including refresh.
   // providerId may be a specific extension ('freighter') or the Stellar
   // Wallets Kit ('stellar-kit'), which lets the user pick any wallet — Freighter,
   // Rabet, LOBSTR, xBull, Albedo, Hana, or WalletConnect.
@@ -101,13 +141,26 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       if (!verifyRes.ok) throw new Error(result.error ?? 'Verification failed')
 
       const supabase = createClient()
-      await supabase.auth.setSession({
-        access_token: result.accessToken,
-        refresh_token: 'placeholder-refresh-token',
+      const { data, error: otpError } = await supabase.auth.verifyOtp({
+        type: 'magiclink',
+        token_hash: result.tokenHash,
       })
+      if (otpError) throw new Error(otpError.message)
+      const session = data.session
+      if (!session?.user) throw new Error('No session returned')
+
+      const user = {
+        id: session.user.id,
+        stellar_address: address,
+        auth_method: 'wallet',
+      }
 
       set({
-        session: { accessToken: result.accessToken, user: result.user },
+        session: {
+          accessToken: session.access_token,
+          refreshToken: session.refresh_token,
+          user,
+        },
         authStatus: 'authenticated',
         status: 'connected',
       })

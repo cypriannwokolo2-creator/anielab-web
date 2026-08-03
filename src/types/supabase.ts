@@ -13,6 +13,7 @@ export interface Database {
           stellar_address: string
           display_name: string | null
           avatar_ipfs_cid: string | null
+          auth_method: 'email' | 'wallet' | null
           created_at: string
         }
         Insert: {
@@ -20,6 +21,7 @@ export interface Database {
           stellar_address: string
           display_name?: string | null
           avatar_ipfs_cid?: string | null
+          auth_method?: 'email' | 'wallet' | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['users']['Insert']>

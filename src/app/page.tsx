@@ -5,8 +5,8 @@ import ProjectCard from '@/components/ProjectCard'
 import RoleMarquee from '@/components/RoleMarquee'
 import FAQSection from '@/components/FAQSection'
 import Footer from '@/components/Footer'
+import ConnectWalletButton from '@/components/ConnectWalletButton'
 import { createClient } from '@/lib/supabase/server'
-import { mockProjects } from '@/lib/mock/projects'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,11 +81,6 @@ export default async function Home() {
   const supabaseReady =
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Mock projects render ONLY in local development, and only while Supabase
-  // credentials are missing. Production builds never show mock data or the
-  // preview badge — the feed is empty until the env vars are set.
-  const showMockData = process.env.NODE_ENV !== 'production' && !supabaseReady
-
   let projects: { id: string; title: string; description: string | null; cover_ipfs_cid: string | null; status: string }[] | null = null
 
   if (supabaseReady) {
@@ -133,12 +128,7 @@ export default async function Home() {
             split automatically — no invoices, no chasing anyone, no legal team.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/create"
-              className="btn-drip px-7 py-3 shadow-lg shadow-amber-950/50"
-            >
-              Start a project
-            </Link>
+            <ConnectWalletButton />
             <Link
               href="#contract"
               className="btn-drip-ghost bg-stone-900/60 px-7 py-3"
@@ -238,11 +228,6 @@ export default async function Home() {
             </p>
             <div className="mt-2 flex items-center gap-3">
               <h2 className="text-2xl font-bold">Active projects</h2>
-              {showMockData && (
-                <span className="rounded-full border border-stone-700 bg-stone-800/80 px-3 py-1 text-xs text-stone-400">
-                  Development preview — sample projects
-                </span>
-              )}
             </div>
           </div>
           <Link href="/create" className="text-sm text-amber-400 hover:text-amber-300">
@@ -253,12 +238,6 @@ export default async function Home() {
         {projects && projects.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </div>
-        ) : showMockData ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {mockProjects.map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>
@@ -346,12 +325,7 @@ export default async function Home() {
               it&apos;s written down.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link
-                href="/create"
-                className="btn-drip px-7 py-3 shadow-lg shadow-amber-950/50"
-              >
-                Start a project
-              </Link>
+              <ConnectWalletButton />
               <Link
                 href="#contract"
                 className="btn-drip-ghost bg-stone-900/60 px-7 py-3"

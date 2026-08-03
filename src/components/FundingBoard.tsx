@@ -1,7 +1,6 @@
 import { Coins, Users } from 'lucide-react'
 import { getContractUsdcBalance } from '@/lib/stellar/funding'
 import { formatUsdc, usdcPercent } from '@/lib/stellar/usdc'
-import { CONTRACT_ID, getContractState } from '@/lib/stellar/contractState'
 import { createClient } from '@/lib/supabase/server'
 import FundProjectDialog from './FundProjectDialog'
 
@@ -28,9 +27,6 @@ export interface RawFundingProject {
   funding_goal?: number | string | null
   status: string
 }
-
-/** Demo goal used in dev, backed by the live testnet contract. */
-const DEMO_GOAL = 250_000_000_000n // 25,000 USDC
 
 export default async function FundingBoard({
   projects,
@@ -145,43 +141,27 @@ export default async function FundingBoard({
 async function buildProjects(
   projects: RawFundingProject[] | null
 ): Promise<FundingProject[]> {
+  if (!projects || projects.length === 0) return []
+
   const supabaseReady =
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (projects && projects.length > 0) {
-    const supabase = supabaseReady ? await createClient() : null
-    const counts = new Map<string, number>()
-    if (supabase) {
-      const { data } = await supabase.from('contributions').select('project_id')
-      data?.forEach((c) => counts.set(c.project_id, (counts.get(c.project_id) ?? 0) + 1))
-    }
-    const items: Omit<FundingProject, 'funded'>[] = projects.map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      coverIpfsCid: p.cover_ipfs_cid,
-      contractId: p.contract_id ?? null,
-      fundingGoal: p.funding_goal != null ? BigInt(p.funding_goal) : null,
-      status: p.status,
-      contributorCount: counts.get(p.id) ?? 0,
-    }))
-    return enrichWithBalances(items)
+  const supabase = supabaseReady ? await createClient() : null
+  const counts = new Map<string, number>()
+  if (supabase) {
+    const { data } = await supabase.from('contributions').select('project_id')
+    data?.forEach((c) => counts.set(c.project_id, (counts.get(c.project_id) ?? 0) + 1))
   }
-
-  // Dev fallback — the live testnet RevenueSplitter as a demo project.
-  const state = await getContractState()
-  return enrichWithBalances([
-    {
-      id: 'demo-live-contract',
-      title: 'Stellar Sakura — OVA',
-      description:
-        'A 24-minute anime short: original story, character design, and a full original soundtrack. The demo project reads live from the RevenueSplitter contract on testnet.',
-      contractId: CONTRACT_ID,
-      fundingGoal: DEMO_GOAL,
-      status: 'active',
-      contributorCount: state?.contributors.length ?? 0,
-    },
-  ])
+  const items: Omit<FundingProject, 'funded'>[] = projects.map((p) => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    coverIpfsCid: p.cover_ipfs_cid,
+    contractId: p.contract_id ?? null,
+    fundingGoal: p.funding_goal != null ? BigInt(p.funding_goal) : null,
+    status: p.status,
+    contributorCount: counts.get(p.id) ?? 0,
+  }))
+  return enrichWithBalances(items)
 }
 
 async function enrichWithBalances(

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, Menu, X } from 'lucide-react'
+import { ChevronDown, Menu, Wallet, X } from 'lucide-react'
 import Logo from './Logo'
 import AuthDialog from './AuthDialog'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
@@ -55,8 +55,12 @@ export default function Header() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const exploreRef = useRef<HTMLDivElement>(null)
 
-  const { address, authStatus, signOut } = useWalletStore()
+  const { address, authStatus, signOut, restoreSession } = useWalletStore()
   const signedIn = authStatus === 'authenticated'
+
+  useEffect(() => {
+    void restoreSession()
+  }, [restoreSession])
 
   useEffect(() => {
     const onScroll = () => setRaised(window.scrollY > 8)
@@ -169,18 +173,28 @@ export default function Header() {
           </nav>
         </div>
 
-        {/* single CTA — sign-in lives in the Explore dropdown */}
+        {/* single CTA — connect wallet to sign up; signed-in users get Start a project */}
         <div
           className="relative hidden md:block"
           style={{ borderRadius: '1.5rem 0 1.5rem 0' }}
         >
           <div className="wave-glow" />
-          <Link
-            href="/create"
-            className="relative block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
-          >
-            Start a project
-          </Link>
+          {signedIn ? (
+            <Link
+              href="/create"
+              className="relative block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
+            >
+              Start a project
+            </Link>
+          ) : (
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="relative flex items-center gap-2 rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
+            >
+              <Wallet className="h-4 w-4" />
+              Connect wallet
+            </button>
+          )}
         </div>
 
         <button
@@ -243,13 +257,25 @@ export default function Header() {
               : 'Sign in / Join AnieLab'}
           </button>
 
-          <Link
-            href="/create"
-            onClick={() => setMenuOpen(false)}
-            className="mt-2 block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
-          >
-            Start a project
-          </Link>
+          {signedIn ? (
+            <Link
+              href="/create"
+              onClick={() => setMenuOpen(false)}
+              className="mt-2 block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
+            >
+              Start a project
+            </Link>
+          ) : (
+            <button
+              onClick={() => {
+                setMenuOpen(false)
+                setDialogOpen(true)
+              }}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
+            >
+              <Wallet className="h-4 w-4" /> Connect wallet
+            </button>
+          )}
 
           {signedIn && (
             <button

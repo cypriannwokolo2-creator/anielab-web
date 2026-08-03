@@ -12,6 +12,7 @@ const learnLinks = [
   { href: '/#how', label: 'How it works' },
   { href: '/#contract', label: 'Live contract' },
   { href: '/#faq', label: 'FAQ' },
+  { href: '/admin', label: 'Admin' },
 ]
 
 const codeLinks = [
