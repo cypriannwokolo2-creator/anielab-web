@@ -1,7 +1,9 @@
 import Link from 'next/link'
+import { Check, Coins, Handshake, PenTool } from 'lucide-react'
 import ContractExplorer from '@/components/ContractExplorer'
 import ProjectCard from '@/components/ProjectCard'
 import RoleMarquee from '@/components/RoleMarquee'
+import FAQAccordion from '@/components/FAQAccordion'
 import { createClient } from '@/lib/supabase/server'
 import { mockProjects } from '@/lib/mock/projects'
 
@@ -9,19 +11,25 @@ export const dynamic = 'force-dynamic'
 
 const steps = [
   {
+    icon: Handshake,
     title: 'Agree on the split',
     description:
-      'Start a project, add your teammates, and set each person’s percentage — writing, art, music, voices. That agreement is written into the project’s smart contract, where everyone can see it.',
+      'Start the project, add your crew — writer, artist, composer, voice — and set each person’s percentage. That agreement is written into the contract, where everyone can see it.',
+    tag: 'One contract per project',
   },
   {
+    icon: PenTool,
     title: 'Make the thing',
     description:
-      'Upload your work as you go. Every file is stored on IPFS with your name attached, and the team’s credit list updates automatically — no one’s contribution gets lost in a group chat.',
+      'Work exactly as you normally would. Every deliverable is pinned to IPFS with your name attached, so the credit list updates itself as you go.',
+    tag: 'Files on IPFS, credited by name',
   },
   {
+    icon: Coins,
     title: 'Get paid, automatically',
     description:
-      'When crowdfunding or streaming revenue arrives, the contract pays every contributor their agreed percentage. Done — no spreadsheets, no chasing invoices, no one deciding what you deserve.',
+      'When crowdfunding or streaming revenue lands, the contract pays each contributor their agreed percentage — no spreadsheets, no chasing, no “who did what?” debates.',
+    tag: 'Every payout is public',
   },
 ]
 
@@ -183,20 +191,36 @@ export default async function Home() {
             The sequence
           </p>
           <h2 className="mt-3 text-3xl font-bold">How AnieLab works</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-stone-400">
+            Three steps, one contract. Your share is agreed once, then paid
+            forever.
+          </p>
         </div>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+
+        <div className="relative mt-14 grid gap-10 md:grid-cols-3 md:gap-6">
+          {/* connector line */}
+          <div className="pointer-events-none absolute left-[16%] right-[16%] top-8 hidden h-px bg-gradient-to-r from-amber-500/0 via-amber-500/40 to-amber-500/0 md:block" />
+
           {steps.map((step, i) => (
-            <div
-              key={step.title}
-              className="rounded-2xl border border-stone-800 bg-stone-900/60 p-6 transition hover:border-amber-500/50"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 font-mono text-sm font-bold text-stone-950">
-                {i + 1}
+            <div key={step.title} className="relative">
+              <div className="flex items-center gap-4">
+                <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950 shadow-lg shadow-amber-950/40">
+                  <step.icon className="h-7 w-7" />
+                </div>
+                <span className="font-mono text-xs tracking-widest text-amber-400/70">
+                  STEP 0{i + 1}
+                </span>
               </div>
-              <h3 className="mt-4 text-lg font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-stone-400">
-                {step.description}
-              </p>
+              <div className="mt-5 rounded-2xl border border-stone-800 bg-stone-900/60 p-6 transition hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-950/30">
+                <h3 className="text-lg font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-stone-400">
+                  {step.description}
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-medium text-amber-300">
+                  <Check className="h-3 w-3" />
+                  {step.tag}
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -303,20 +327,7 @@ export default async function Home() {
           </p>
           <h2 className="mt-3 text-3xl font-bold">Common questions</h2>
         </div>
-        <div className="mt-10 space-y-3">
-          {faqs.map((faq) => (
-            <details
-              key={faq.question}
-              className="group rounded-2xl border border-stone-800 bg-stone-900/60 px-6 py-4 open:border-amber-500/40"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-stone-200">
-                {faq.question}
-                <span className="text-amber-400 transition group-open:rotate-45">+</span>
-              </summary>
-              <p className="mt-3 text-sm leading-relaxed text-stone-400">{faq.answer}</p>
-            </details>
-          ))}
-        </div>
+        <FAQAccordion faqs={faqs} />
       </section>
 
       {/* final cta */}
