@@ -140,7 +140,7 @@ export default function AuthDialog({
           <>
             <div
               className="mt-4 flex gap-1 border border-stone-800 bg-stone-900 p-1"
-              style={{ borderRadius: '1rem 0 1rem 1rem' }}
+              style={{ borderRadius: '1rem 0 1rem 0' }}
             >
               <button
                 onClick={() => setTab('wallet')}
@@ -149,7 +149,7 @@ export default function AuthDialog({
                     ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
                     : 'text-stone-400 hover:text-white'
                 }`}
-                style={{ borderRadius: '0.75rem 0 0.75rem 0.75rem' }}
+                style={{ borderRadius: '0.75rem 0 0.75rem 0' }}
               >
                 <Wallet className="h-4 w-4" /> Wallet
               </button>
@@ -160,7 +160,7 @@ export default function AuthDialog({
                     ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
                     : 'text-stone-400 hover:text-white'
                 }`}
-                style={{ borderRadius: '0.75rem 0 0.75rem 0.75rem' }}
+                style={{ borderRadius: '0.75rem 0 0.75rem 0' }}
               >
                 <Mail className="h-4 w-4" /> Email
               </button>

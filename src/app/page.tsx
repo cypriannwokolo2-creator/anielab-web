@@ -3,7 +3,8 @@ import { Check, Coins, Handshake, PenTool } from 'lucide-react'
 import ContractExplorer from '@/components/ContractExplorer'
 import ProjectCard from '@/components/ProjectCard'
 import RoleMarquee from '@/components/RoleMarquee'
-import FAQAccordion from '@/components/FAQAccordion'
+import FAQSection from '@/components/FAQSection'
+import Footer from '@/components/Footer'
 import { createClient } from '@/lib/supabase/server'
 import { mockProjects } from '@/lib/mock/projects'
 
@@ -319,16 +320,8 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* faq */}
-      <section className="mx-auto max-w-3xl px-6 pb-24">
-        <div className="text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
-            Questions, answered
-          </p>
-          <h2 className="mt-3 text-3xl font-bold">Common questions</h2>
-        </div>
-        <FAQAccordion faqs={faqs} />
-      </section>
+      {/* faq — hidden behind a reveal button */}
+      <FAQSection faqs={faqs} />
 
       {/* final cta */}
       <section className="mx-auto max-w-6xl px-6 pb-24">
@@ -368,28 +361,7 @@ export default async function Home() {
       </section>
 
       {/* footer */}
-      <footer className="border-t border-stone-800 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 text-sm text-stone-500 md:flex-row">
-          <span>AnieLab — Web3 co-creation for indie creators</span>
-          <nav className="flex flex-wrap items-center justify-center gap-5 text-xs">
-            <Link href="/#projects" className="transition hover:text-amber-300">
-              Projects
-            </Link>
-            <Link href="/fund" className="transition hover:text-amber-300">
-              Fund
-            </Link>
-            <Link href="/challenges" className="transition hover:text-amber-300">
-              Challenges
-            </Link>
-            <Link href="/create" className="transition hover:text-amber-300">
-              Start a project
-            </Link>
-          </nav>
-          <span className="font-mono text-xs">
-            contracts / anielab-contracts · backend / anielab-backend · web / anielab-web
-          </span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

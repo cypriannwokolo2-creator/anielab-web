@@ -16,135 +16,176 @@ const explorerLink = (id: string) =>
 export default async function ContractExplorer() {
   const state = await getContractState()
 
+  const live = state && state.admin && state.contributors.length > 0
+
   return (
     <section className="mx-auto w-full max-w-6xl px-6">
-      <div className="overflow-hidden rounded-3xl border border-amber-500/30 bg-stone-900/60 shadow-2xl shadow-amber-950/40 backdrop-blur">
-        <div className="flex items-center justify-between border-b border-stone-800 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
-            </span>
-            <h2 className="font-semibold">RevenueSplitter — live on testnet</h2>
-          </div>
-          <a
-            href={explorerLink(CONTRACT_ID)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-sm text-amber-300 transition hover:bg-amber-500/20"
-          >
-            explorer <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        </div>
-
-        {state ? (
-          <div className="grid gap-6 p-6 md:grid-cols-2">
-            <div className="space-y-4 text-sm">
+      <div
+        className="relative overflow-hidden bg-gradient-to-b from-amber-500/50 via-stone-800/50 to-stone-900 p-px shadow-2xl shadow-amber-950/40"
+        style={{ borderRadius: '2.5rem 0 2.5rem 0' }}
+      >
+        <div className="pointer-events-none absolute -top-24 right-10 h-64 w-64 rounded-full bg-amber-500/15 blur-3xl" />
+        <div
+          className="relative bg-stone-950/95 px-6 py-6 sm:px-8 sm:py-7"
+          style={{ borderRadius: 'calc(2.5rem - 1px) 0 calc(2.5rem - 1px) 0' }}
+        >
+          {/* ledger header */}
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-5">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
+              </span>
               <div>
-                <div className="text-xs uppercase tracking-wider text-stone-500">
-                  Contract ID
-                </div>
-                <div className="mt-1 flex items-center gap-2 font-mono text-xs text-stone-200">
-                  {shortenAddress(CONTRACT_ID, 12)}
-                  <CopyButton value={CONTRACT_ID} />
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs uppercase tracking-wider text-stone-500">
-                  Admin
-                </div>
-                <div className="mt-1 font-mono text-xs text-stone-200">
-                  {state.admin ? (
-                    <a
-                      href={`https://stellar.expert/explorer/testnet/account/${state.admin}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-amber-300 hover:text-amber-200"
-                    >
-                      {shortenAddress(state.admin, 10)}
-                    </a>
-                  ) : (
-                    <span className="text-stone-400">not set</span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs uppercase tracking-wider text-stone-500">
-                  Payout token
-                </div>
-                <div className="mt-1 font-mono text-xs text-stone-200">
-                  {state.token ? (
-                    <a
-                      href={explorerLink(state.token)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-amber-300 hover:text-amber-200"
-                    >
-                      {shortenAddress(state.token, 10)}
-                    </a>
-                  ) : (
-                    <span className="text-stone-400">not set</span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs uppercase tracking-wider text-stone-500">
-                  Network
-                </div>
-                <div className="mt-1 font-mono text-xs text-stone-200">
-                  testnet — {NETWORK_PASSPHRASE}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs uppercase tracking-wider text-stone-500">
-                Contributors ({state.contributors.length})
-              </div>
-              {state.contributors.length > 0 ? (
-                <ul className="mt-2 space-y-2">
-                  {state.contributors.map((address, i) => (
-                    <li
-                      key={address}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-950/60 px-3 py-2"
-                    >
-                      <span className="font-mono text-xs text-stone-300">
-                        {shortenAddress(address, 10)}
-                      </span>
-                      <span className="flex items-center gap-3">
-                        <span className="font-mono text-xs text-stone-500">
-                          {state.shares[i]?.toString() ?? '?'} /{' '}
-                          {state.totalShares.toString()}
-                        </span>
-                        <span className="w-12 text-right font-mono text-xs text-amber-400">
-                          {state.shares[i]
-                            ? sharePct(state.shares[i], state.totalShares)
-                            : '?'}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-stone-500">
-                  No contributors configured yet.
+                <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-amber-400/80">
+                  Revenue Splitter · Live Ledger
                 </p>
-              )}
-              <p className="mt-4 text-xs text-stone-500">
-                Live state read from the Soroban testnet RPC via the generated
-                TypeScript bindings.
-              </p>
+                <h2 className="mt-1 text-xl font-bold">
+                  The contract that pays the crew
+                </h2>
+              </div>
             </div>
+            <a
+              href={explorerLink(CONTRACT_ID)}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-drip-ghost inline-flex items-center gap-1.5 bg-stone-900/60 px-4 py-2 text-sm"
+            >
+              Open on explorer <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
-        ) : (
-          <div className="p-6 text-sm text-stone-400">
-            Could not reach the testnet RPC. Check{' '}
-            <code className="text-stone-300">NEXT_PUBLIC_SOROBAN_RPC_URL</code>.
-          </div>
-        )}
+
+          {state ? (
+            <div className="mt-6 grid gap-8 lg:grid-cols-2">
+              {/* clauses */}
+              <div className="space-y-4">
+                <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-stone-500">
+                  The contract
+                </p>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900/50 px-4 py-3">
+                    <span className="text-xs uppercase tracking-wider text-stone-500">
+                      ID
+                    </span>
+                    <span className="flex items-center gap-2 font-mono text-xs text-stone-200">
+                      {shortenAddress(CONTRACT_ID, 14)}
+                      <CopyButton value={CONTRACT_ID} />
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900/50 px-4 py-3">
+                    <span className="text-xs uppercase tracking-wider text-stone-500">
+                      Admin
+                    </span>
+                    {state.admin ? (
+                      <a
+                        href={`https://stellar.expert/explorer/testnet/account/${state.admin}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono text-xs text-amber-300 hover:text-amber-200"
+                      >
+                        {shortenAddress(state.admin, 12)}
+                      </a>
+                    ) : (
+                      <span className="font-mono text-xs text-stone-500">not set</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900/50 px-4 py-3">
+                    <span className="text-xs uppercase tracking-wider text-stone-500">
+                      Payout token
+                    </span>
+                    {state.token ? (
+                      <a
+                        href={explorerLink(state.token)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono text-xs text-amber-300 hover:text-amber-200"
+                      >
+                        {shortenAddress(state.token, 12)}
+                      </a>
+                    ) : (
+                      <span className="font-mono text-xs text-stone-500">not set</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900/50 px-4 py-3">
+                    <span className="text-xs uppercase tracking-wider text-stone-500">
+                      Network
+                    </span>
+                    <span className="font-mono text-xs text-stone-300">
+                      testnet · {NETWORK_PASSPHRASE}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900/50 px-4 py-3">
+                    <span className="text-xs uppercase tracking-wider text-stone-500">
+                      Status
+                    </span>
+                    <span
+                      className={`rounded-[0.6rem_0_0.6rem_0] border px-3 py-1 font-mono text-[11px] ${
+                        live
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                          : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                      }`}
+                    >
+                      {live ? '● initialized · live' : '○ awaiting setup'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* the split */}
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-stone-500">
+                  Contributors &amp; split ({state.contributors.length})
+                </p>
+
+                {state.contributors.length > 0 ? (
+                  <div className="mt-4 space-y-4">
+                    {state.contributors.map((address, i) => {
+                      const share = state.shares[i] ?? 0n
+                      const pct = sharePct(share, state.totalShares)
+                      return (
+                        <div key={address}>
+                          <div className="mb-1.5 flex items-center justify-between font-mono text-xs">
+                            <span className="text-stone-300">
+                              {shortenAddress(address, 10)}
+                            </span>
+                            <span className="text-amber-400">
+                              {pct} · {share.toString()} / {state.totalShares.toString()}w
+                            </span>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-stone-800">
+                            <div
+                              className="bar-grow h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500"
+                              style={{ width: pct }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-stone-500">
+                    No contributors configured yet.
+                  </p>
+                )}
+
+                <p className="mt-6 border-t border-stone-800 pt-4 font-mono text-[11px] text-stone-500">
+                  reads: soroban-testnet.stellar.org · typed via the generated
+                  revenue-splitter bindings
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 text-sm text-stone-400">
+              Could not reach the testnet RPC. Check{' '}
+              <code className="text-stone-300">NEXT_PUBLIC_SOROBAN_RPC_URL</code>.
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )

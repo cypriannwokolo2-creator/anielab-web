@@ -114,9 +114,10 @@ body {
   }
 }
 
-/* Drips-style drip-corner buttons — applied site-wide */
+/* Drips-style drip-corner buttons — applied site-wide.
+   Corner pattern mirrors the header: top-right + bottom-left square. */
 .btn-drip {
-  border-radius: 1rem 0 1rem 1rem;
+  border-radius: 1.25rem 0 1.25rem 0;
   background-image: linear-gradient(to bottom, #fcd34d, #f59e0b);
   color: #1c1917;
   font-weight: 600;
@@ -140,7 +141,7 @@ body {
 }
 
 .btn-drip-ghost {
-  border-radius: 1rem 0 1rem 1rem;
+  border-radius: 1.25rem 0 1.25rem 0;
   border: 1px solid #44403c;
   color: #e7e5e4;
   font-weight: 500;
@@ -154,4 +155,19 @@ body {
   border-color: rgba(245, 158, 11, 0.6);
   color: #fde68a;
   background-color: rgba(28, 25, 23, 0.8);
+}
+
+/* split-bar grow-in */
+@keyframes grow-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.bar-grow {
+  transform-origin: left;
+  animation: grow-bar 0.8s ease-out both;
 }

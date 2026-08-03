@@ -77,12 +77,12 @@ export default function Header() {
 
   return (
     <header
-      className={`fixed left-1/2 top-4 z-40 w-[calc(100vw-2rem)] max-w-6xl -translate-x-1/2 border bg-stone-950/95 transition-all duration-300 ${
+      className={`fixed left-1/2 top-4 z-40 w-[calc(100vw-1.25rem)] -translate-x-1/2 border bg-stone-950/95 transition-all duration-300 ${
         raised ? 'border-amber-500/20 shadow-2xl shadow-black/50' : 'border-stone-800'
       }`}
       style={{
         // Rounded top-left + bottom-right only
-        borderRadius: menuOpen ? '2rem 0 0 0' : '2rem 0 2rem 0',
+        borderRadius: menuOpen ? '2.5rem 0 0 0' : '2.5rem 0 2.5rem 0',
       }}
     >
       <div className="flex items-center justify-between px-4 py-3 sm:px-5">
@@ -115,7 +115,7 @@ export default function Header() {
               {exploreOpen && (
                 <div
                   className="dialog-panel absolute left-0 top-full mt-3 w-80 border border-stone-800 bg-stone-950/95 p-2 shadow-2xl shadow-black/50 backdrop-blur"
-                  style={{ borderRadius: '1.25rem 0 1.25rem 0' }}
+                  style={{ borderRadius: '1.5rem 0 1.5rem 0' }}
                 >
                   {exploreItems.map((item) => (
                     <Link
@@ -172,12 +172,12 @@ export default function Header() {
         {/* single CTA — sign-in lives in the Explore dropdown */}
         <div
           className="relative hidden md:block"
-          style={{ borderRadius: '1rem 0 1rem 1rem' }}
+          style={{ borderRadius: '1.5rem 0 1.5rem 0' }}
         >
           <div className="wave-glow" />
           <Link
             href="/create"
-            className="relative block rounded-[1rem_0_1rem_1rem] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
+            className="relative block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
           >
             Start a project
           </Link>
@@ -186,7 +186,7 @@ export default function Header() {
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
-          className="flex h-10 w-10 items-center justify-center rounded-[0.75rem_0_0.75rem_0.75rem] border border-stone-800 text-stone-300 transition hover:border-amber-500/40 hover:text-amber-300 md:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-[0.75rem_0_0.75rem_0] border border-stone-800 text-stone-300 transition hover:border-amber-500/40 hover:text-amber-300 md:hidden"
         >
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -236,7 +236,7 @@ export default function Header() {
               setMenuOpen(false)
               setDialogOpen(true)
             }}
-            className="mt-3 w-full rounded-[1rem_0_1rem_1rem] border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300"
+            className="mt-3 w-full rounded-[1.25rem_0_1.25rem_0] border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300"
           >
             {signedIn && address
               ? `Signed in · ${address.slice(0, 6)}…${address.slice(-4)}`
@@ -246,7 +246,7 @@ export default function Header() {
           <Link
             href="/create"
             onClick={() => setMenuOpen(false)}
-            className="mt-2 block rounded-[1rem_0_1rem_1rem] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
+            className="mt-2 block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
           >
             Start a project
           </Link>
@@ -257,7 +257,7 @@ export default function Header() {
                 signOut()
                 setMenuOpen(false)
               }}
-              className="mt-2 w-full rounded-[1rem_0_1rem_1rem] border border-stone-800 px-4 py-3 text-sm font-medium text-stone-400 hover:text-stone-200"
+              className="mt-2 w-full rounded-[1.25rem_0_1.25rem_0] border border-stone-800 px-4 py-3 text-sm font-medium text-stone-400 hover:text-stone-200"
             >
               Sign out
             </button>
