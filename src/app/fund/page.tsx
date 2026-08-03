@@ -47,13 +47,13 @@ export default function FundPage() {
         <div className="mt-8 flex flex-wrap gap-4">
           <Link
             href="/#projects"
-            className="rounded-full bg-gradient-to-b from-amber-300 to-amber-500 px-7 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/50 transition hover:from-amber-200 hover:to-amber-400"
+            className="btn-drip px-7 py-3 shadow-lg shadow-amber-950/50"
           >
             Browse projects
           </Link>
           <Link
             href="/create"
-            className="rounded-full border border-stone-700 bg-stone-900/60 px-7 py-3 font-medium text-stone-200 transition hover:border-amber-500/60 hover:text-amber-200"
+            className="btn-drip-ghost bg-stone-900/60 px-7 py-3"
           >
             Have an idea? Start a project
           </Link>
@@ -89,7 +89,7 @@ export default function FundPage() {
         </p>
         <Link
           href="/#contract"
-          className="mt-6 inline-block rounded-full border border-stone-700 px-6 py-2.5 text-sm font-medium text-stone-200 transition hover:border-amber-500/60 hover:text-amber-200"
+          className="btn-drip-ghost bg-stone-900/60 px-6 py-2.5 text-sm"
         >
           See the live contract →
         </Link>

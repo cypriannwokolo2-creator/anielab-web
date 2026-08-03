@@ -134,13 +134,13 @@ export default async function Home() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             <Link
               href="/create"
-              className="rounded-full bg-gradient-to-b from-amber-300 to-amber-500 px-7 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/50 transition hover:from-amber-200 hover:to-amber-400"
+              className="btn-drip px-7 py-3 shadow-lg shadow-amber-950/50"
             >
               Start a project
             </Link>
             <Link
               href="#contract"
-              className="rounded-full border border-stone-700 bg-stone-900/60 px-7 py-3 font-medium text-stone-200 transition hover:border-amber-500/60 hover:text-amber-200"
+              className="btn-drip-ghost bg-stone-900/60 px-7 py-3"
             >
               See how it works, live
             </Link>
@@ -185,7 +185,7 @@ export default async function Home() {
       </div>
 
       {/* how it works */}
-      <section className="mx-auto max-w-6xl px-6 pb-20">
+      <section id="how" className="mx-auto max-w-6xl scroll-mt-24 px-6 pb-20">
         <div className="text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
             The sequence
@@ -352,13 +352,13 @@ export default async function Home() {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
                 href="/create"
-                className="rounded-full bg-gradient-to-b from-amber-300 to-amber-500 px-7 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/50 transition hover:from-amber-200 hover:to-amber-400"
+                className="btn-drip px-7 py-3 shadow-lg shadow-amber-950/50"
               >
                 Start a project
               </Link>
               <Link
                 href="#contract"
-                className="rounded-full border border-stone-700 bg-stone-900/60 px-7 py-3 font-medium text-stone-200 transition hover:border-amber-500/60 hover:text-amber-200"
+                className="btn-drip-ghost bg-stone-900/60 px-7 py-3"
               >
                 See the live contract
               </Link>

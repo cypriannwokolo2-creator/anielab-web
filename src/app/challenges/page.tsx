@@ -47,13 +47,13 @@ export default function ChallengesPage() {
         <div className="mt-8 flex flex-wrap gap-4">
           <Link
             href="/create"
-            className="rounded-full bg-gradient-to-b from-amber-300 to-amber-500 px-7 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/50 transition hover:from-amber-200 hover:to-amber-400"
+            className="btn-drip px-7 py-3 shadow-lg shadow-amber-950/50"
           >
             Start a project first
           </Link>
           <Link
             href="/fund"
-            className="rounded-full border border-stone-700 bg-stone-900/60 px-7 py-3 font-medium text-stone-200 transition hover:border-amber-500/60 hover:text-amber-200"
+            className="btn-drip-ghost bg-stone-900/60 px-7 py-3"
           >
             See how funding works
           </Link>

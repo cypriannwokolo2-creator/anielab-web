@@ -131,31 +131,36 @@ export default function AuthDialog({
                 useWalletStore.getState().signOut()
                 onClose()
               }}
-              className="w-full rounded-full border border-stone-700 py-2.5 text-sm font-medium text-stone-300 transition hover:border-amber-500/50 hover:text-amber-200"
+              className="btn-drip-ghost w-full py-2.5"
             >
               Sign out
             </button>
           </div>
         ) : (
           <>
-            <div className="mt-4 flex gap-1 rounded-full border border-stone-800 bg-stone-900 p-1">
+            <div
+              className="mt-4 flex gap-1 border border-stone-800 bg-stone-900 p-1"
+              style={{ borderRadius: '1rem 0 1rem 1rem' }}
+            >
               <button
                 onClick={() => setTab('wallet')}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition ${
+                className={`flex flex-1 items-center justify-center gap-2 py-2 text-sm font-medium transition ${
                   tab === 'wallet'
                     ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
                     : 'text-stone-400 hover:text-white'
                 }`}
+                style={{ borderRadius: '0.75rem 0 0.75rem 0.75rem' }}
               >
                 <Wallet className="h-4 w-4" /> Wallet
               </button>
               <button
                 onClick={() => setTab('email')}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition ${
+                className={`flex flex-1 items-center justify-center gap-2 py-2 text-sm font-medium transition ${
                   tab === 'email'
                     ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
                     : 'text-stone-400 hover:text-white'
                 }`}
+                style={{ borderRadius: '0.75rem 0 0.75rem 0.75rem' }}
               >
                 <Mail className="h-4 w-4" /> Email
               </button>
@@ -240,7 +245,7 @@ export default function AuthDialog({
                 <button
                   type="submit"
                   disabled={busy}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 py-3 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400 disabled:opacity-60"
+                  className="btn-drip flex w-full items-center justify-center gap-2 py-3 disabled:opacity-60"
                 >
                   {busy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

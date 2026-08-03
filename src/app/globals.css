@@ -113,3 +113,45 @@ body {
     animation: none;
   }
 }
+
+/* Drips-style drip-corner buttons — applied site-wide */
+.btn-drip {
+  border-radius: 1rem 0 1rem 1rem;
+  background-image: linear-gradient(to bottom, #fcd34d, #f59e0b);
+  color: #1c1917;
+  font-weight: 600;
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+}
+
+.btn-drip:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.btn-drip:active {
+  transform: translateY(0);
+}
+
+.btn-drip:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.btn-drip-ghost {
+  border-radius: 1rem 0 1rem 1rem;
+  border: 1px solid #44403c;
+  color: #e7e5e4;
+  font-weight: 500;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.btn-drip-ghost:hover {
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #fde68a;
+  background-color: rgba(28, 25, 23, 0.8);
+}

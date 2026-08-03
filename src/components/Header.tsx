@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronDown, Menu, X } from 'lucide-react'
 import Logo from './Logo'
-import ConnectWalletButton from './ConnectWalletButton'
+import AuthDialog from './AuthDialog'
+import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 
 const exploreItems = [
   {
@@ -42,16 +43,20 @@ const exploreItems = [
   },
 ]
 
-const navLinks = [
-  { href: '/fund', label: 'Fund' },
-  { href: '/challenges', label: 'Challenges' },
+const topLinks = [
+  { href: '/#how', label: 'How it works' },
+  { href: '/#contract', label: 'Live contract' },
 ]
 
 export default function Header() {
   const [raised, setRaised] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [exploreOpen, setExploreOpen] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const exploreRef = useRef<HTMLDivElement>(null)
+
+  const { address, authStatus, signOut } = useWalletStore()
+  const signedIn = authStatus === 'authenticated'
 
   useEffect(() => {
     const onScroll = () => setRaised(window.scrollY > 8)
@@ -76,8 +81,8 @@ export default function Header() {
         raised ? 'border-amber-500/20 shadow-2xl shadow-black/50' : 'border-stone-800'
       }`}
       style={{
-        // Drips-style asymmetric corner; squared bottom while the mobile menu is open
-        borderRadius: menuOpen ? '2rem 0 0 0' : '2rem 0 2rem 2rem',
+        // Rounded top-left + bottom-right only
+        borderRadius: menuOpen ? '2rem 0 0 0' : '2rem 0 2rem 0',
       }}
     >
       <div className="flex items-center justify-between px-4 py-3 sm:px-5">
@@ -110,7 +115,7 @@ export default function Header() {
               {exploreOpen && (
                 <div
                   className="dialog-panel absolute left-0 top-full mt-3 w-80 border border-stone-800 bg-stone-950/95 p-2 shadow-2xl shadow-black/50 backdrop-blur"
-                  style={{ borderRadius: '1.25rem 0 1.25rem 1.25rem' }}
+                  style={{ borderRadius: '1.25rem 0 1.25rem 0' }}
                 >
                   {exploreItems.map((item) => (
                     <Link
@@ -134,11 +139,25 @@ export default function Header() {
                       </span>
                     </Link>
                   ))}
+
+                  <div className="my-1 h-px bg-stone-800" />
+
+                  <button
+                    onClick={() => {
+                      setExploreOpen(false)
+                      setDialogOpen(true)
+                    }}
+                    className="flex w-full items-center justify-between rounded-[0.9rem_0_0.9rem_0.9rem] px-3.5 py-3 text-sm font-medium text-amber-300 transition hover:bg-stone-900"
+                  >
+                    {signedIn && address
+                      ? `Signed in · ${address.slice(0, 6)}…${address.slice(-4)}`
+                      : 'Sign in / Join AnieLab'}
+                  </button>
                 </div>
               )}
             </div>
 
-            {navLinks.map((link) => (
+            {topLinks.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
@@ -150,39 +169,46 @@ export default function Header() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* animated-glow primary CTA */}
-          <div
-            className="relative hidden md:block"
-            style={{ borderRadius: '1rem 0 1rem 1rem' }}
+        {/* single CTA — sign-in lives in the Explore dropdown */}
+        <div
+          className="relative hidden md:block"
+          style={{ borderRadius: '1rem 0 1rem 1rem' }}
+        >
+          <div className="wave-glow" />
+          <Link
+            href="/create"
+            className="relative block rounded-[1rem_0_1rem_1rem] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
           >
-            <div className="wave-glow" />
-            <Link
-              href="/create"
-              className="relative block rounded-[1rem_0_1rem_1rem] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
-            >
-              Start a project
-            </Link>
-          </div>
-
-          <div className="hidden md:block">
-            <ConnectWalletButton />
-          </div>
-
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle menu"
-            className="flex h-10 w-10 items-center justify-center rounded-[0.75rem_0_0.75rem_0.75rem] border border-stone-800 text-stone-300 transition hover:border-amber-500/40 hover:text-amber-300 md:hidden"
-          >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+            Start a project
+          </Link>
         </div>
+
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
+          className="flex h-10 w-10 items-center justify-center rounded-[0.75rem_0_0.75rem_0.75rem] border border-stone-800 text-stone-300 transition hover:border-amber-500/40 hover:text-amber-300 md:hidden"
+        >
+          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
       </div>
 
       {/* mobile menu */}
       {menuOpen && (
         <div className="border-t border-stone-800 px-5 pb-5 pt-3 md:hidden">
-          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+          <nav className="flex flex-col gap-1">
+            {topLinks.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className="rounded-xl px-3 py-2.5 text-sm text-stone-300 transition hover:bg-stone-900 hover:text-amber-300"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
             Explore
           </p>
           <nav className="flex flex-col gap-1">
@@ -203,19 +229,43 @@ export default function Header() {
                 )}
               </Link>
             ))}
-            <Link
-              href="/create"
-              onClick={() => setMenuOpen(false)}
-              className="mt-2 rounded-[1rem_0_1rem_1rem] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
-            >
-              Start a project
-            </Link>
           </nav>
-          <div className="mt-3">
-            <ConnectWalletButton />
-          </div>
+
+          <button
+            onClick={() => {
+              setMenuOpen(false)
+              setDialogOpen(true)
+            }}
+            className="mt-3 w-full rounded-[1rem_0_1rem_1rem] border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300"
+          >
+            {signedIn && address
+              ? `Signed in · ${address.slice(0, 6)}…${address.slice(-4)}`
+              : 'Sign in / Join AnieLab'}
+          </button>
+
+          <Link
+            href="/create"
+            onClick={() => setMenuOpen(false)}
+            className="mt-2 block rounded-[1rem_0_1rem_1rem] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
+          >
+            Start a project
+          </Link>
+
+          {signedIn && (
+            <button
+              onClick={() => {
+                signOut()
+                setMenuOpen(false)
+              }}
+              className="mt-2 w-full rounded-[1rem_0_1rem_1rem] border border-stone-800 px-4 py-3 text-sm font-medium text-stone-400 hover:text-stone-200"
+            >
+              Sign out
+            </button>
+          )}
         </div>
       )}
+
+      <AuthDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </header>
   )
 }
