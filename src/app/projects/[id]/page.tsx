@@ -3,6 +3,7 @@ import { Coins, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getContractUsdcBalance } from '@/lib/stellar/funding'
 import { formatUsdc, usdcPercent } from '@/lib/stellar/usdc'
+import ShareButton from '@/components/ShareButton'
 
 export const revalidate = 60
 
@@ -51,7 +52,12 @@ export default async function ProjectPage({
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
-      <h1 className="text-3xl font-bold">{project.title}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-3xl font-bold">{project.title}</h1>
+        <ShareButton
+          className="btn-drip-ghost inline-flex items-center gap-1.5 bg-stone-900/60 px-4 py-2 text-xs"
+        />
+      </div>
       {project.description && (
         <p className="mt-3 text-lg text-stone-400">{project.description}</p>
       )}
