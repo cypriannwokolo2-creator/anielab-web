@@ -48,8 +48,21 @@ export default function AuthDialog({
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [sentEmail, setSentEmail] = useState('')
+  const [resendIn, setResendIn] = useState(0)
 
   const strength = passwordStrength(password)
+
+  // Counts down the email-resend cooldown (shared by the OTP and
+  // forgot-password flows) so users can't spam the mailer.
+  useEffect(() => {
+    if (resendIn <= 0) return
+    const t = setInterval(() => setResendIn((s) => s - 1), 1000)
+    return () => clearInterval(t)
+  }, [resendIn])
+
+  function startCooldown() {
+    setResendIn(30)
+  }
 
   const { address, status, authStatus, error, signIn } = useWalletStore()
 
@@ -70,6 +83,7 @@ export default function AuthDialog({
     setOtpCode('')
     setSentEmail('')
     setConfirmPassword('')
+    setResendIn(0)
   }
 
   async function emailSubmit(e: React.FormEvent) {
@@ -123,6 +137,7 @@ export default function AuthDialog({
       })
       if (error) throw new Error(error.message)
       toast.success('Reset link sent — check your inbox.')
+      startCooldown()
       resetView()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not send reset link')
@@ -143,6 +158,7 @@ export default function AuthDialog({
       if (error) throw new Error(error.message)
       setSentEmail(email)
       setOtpSent(true)
+      startCooldown()
       toast.success('One-time code sent — check your inbox.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not send code')
@@ -372,10 +388,16 @@ export default function AuthDialog({
                   </label>
                   <button
                     type="submit"
-                    disabled={busy}
+                    disabled={busy || resendIn > 0}
                     className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
                   >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send code'}
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : resendIn > 0 ? (
+                      `Send code in ${resendIn}s`
+                    ) : (
+                      'Send code'
+                    )}
                   </button>
                   <button
                     type="button"
