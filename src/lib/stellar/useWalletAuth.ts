@@ -14,7 +14,13 @@ const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
 export interface AuthSession {
   accessToken: string
   refreshToken: string
-  user: { id: string; stellar_address: string; auth_method: string } | null
+  user: {
+    id: string
+    stellar_address: string
+    auth_method: string
+    email?: string | null
+    display_name?: string | null
+  } | null
 }
 
 interface WalletState {
@@ -53,20 +59,24 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       } = await supabase.auth.getSession()
       if (session?.user) {
         const meta = session.user.user_metadata as Record<string, unknown> | undefined
+        const stellarAddress =
+          typeof meta?.stellar_address === 'string' ? meta.stellar_address : ''
         set({
           session: {
             accessToken: session.access_token,
             refreshToken: session.refresh_token,
             user: {
               id: session.user.id,
-              stellar_address:
-                typeof meta?.stellar_address === 'string' ? meta.stellar_address : '',
-              auth_method: 'wallet',
+              stellar_address: stellarAddress,
+              auth_method:
+                typeof meta?.auth_method === 'string' ? meta.auth_method : 'email',
+              email: session.user.email,
+              display_name:
+                typeof meta?.display_name === 'string' ? meta.display_name : null,
             },
           },
           authStatus: 'authenticated',
-          address:
-            typeof meta?.stellar_address === 'string' ? meta.stellar_address : null,
+          address: stellarAddress || null,
           status: 'connected',
         })
       }
@@ -153,6 +163,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         id: session.user.id,
         stellar_address: address,
         auth_method: 'wallet',
+        email: session.user.email,
       }
 
       set({

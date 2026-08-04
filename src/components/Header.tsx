@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, Menu, Wallet, X } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Settings, Wallet, X } from 'lucide-react'
 import Logo from './Logo'
 import AuthDialog from './AuthDialog'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
@@ -52,11 +52,16 @@ export default function Header() {
   const [raised, setRaised] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [exploreOpen, setExploreOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const exploreRef = useRef<HTMLDivElement>(null)
+  const accountRef = useRef<HTMLDivElement>(null)
 
-  const { address, authStatus, signOut, restoreSession } = useWalletStore()
+  const { address, authStatus, session, signOut, restoreSession } = useWalletStore()
   const signedIn = authStatus === 'authenticated'
+
+  const accountLabel = session?.user?.email ?? address ?? ''
+  const initials = (accountLabel.trim()[0] ?? '').toUpperCase()
 
   useEffect(() => {
     void restoreSession()
@@ -78,6 +83,17 @@ export default function Header() {
     document.addEventListener('click', onDocClick)
     return () => document.removeEventListener('click', onDocClick)
   }, [exploreOpen])
+
+  useEffect(() => {
+    if (!accountOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false)
+      }
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [accountOpen])
 
   return (
     <header
@@ -175,17 +191,65 @@ export default function Header() {
 
         {/* single CTA — connect wallet to sign up; signed-in users get Start a project */}
         <div
-          className="relative hidden md:block"
+          className="relative hidden items-center gap-3 md:flex"
           style={{ borderRadius: '1.5rem 0 1.5rem 0' }}
         >
           <div className="wave-glow" />
           {signedIn ? (
-            <Link
-              href="/create"
-              className="relative block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
-            >
-              Start a project
-            </Link>
+            <>
+              <Link
+                href="/create"
+                className="relative block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
+              >
+                Start a project
+              </Link>
+
+              {/* account menu */}
+              <div className="relative" ref={accountRef}>
+                <button
+                  onClick={() => setAccountOpen(!accountOpen)}
+                  aria-expanded={accountOpen}
+                  aria-label="Account menu"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-500/40 bg-gradient-to-b from-amber-300 to-amber-500 text-sm font-bold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
+                >
+                  {initials || <Wallet className="h-4 w-4" />}
+                </button>
+
+                {accountOpen && (
+                  <div
+                    className="dialog-panel absolute right-0 top-full mt-3 w-72 border border-stone-800 bg-stone-950/95 p-2 shadow-2xl shadow-black/50 backdrop-blur"
+                    style={{ borderRadius: '1.5rem 0 1.5rem 0' }}
+                  >
+                    <div className="border-b border-stone-800 px-3.5 py-3">
+                      <p className="text-sm font-medium text-stone-200">
+                        {session?.user?.display_name || 'AnieLab member'}
+                      </p>
+                      <p className="mt-0.5 truncate font-mono text-xs text-stone-500">
+                        {session?.user?.email || address}
+                      </p>
+                    </div>
+                    <div className="py-1">
+                      <Link
+                        href="/account"
+                        onClick={() => setAccountOpen(false)}
+                        className="flex items-center gap-2.5 rounded-[0.9rem_0_0.9rem_0.9rem] px-3.5 py-2.5 text-sm text-stone-300 transition hover:bg-stone-900 hover:text-amber-300"
+                      >
+                        <Settings className="h-4 w-4" /> Account settings
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setAccountOpen(false)
+                          void signOut()
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-[0.9rem_0_0.9rem_0.9rem] px-3.5 py-2.5 text-sm text-stone-400 transition hover:bg-stone-900 hover:text-red-400"
+                      >
+                        <LogOut className="h-4 w-4" /> Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <button
               onClick={() => setDialogOpen(true)}
@@ -275,6 +339,16 @@ export default function Header() {
             >
               <Wallet className="h-4 w-4" /> Connect wallet
             </button>
+          )}
+
+          {signedIn && (
+            <Link
+              href="/account"
+              onClick={() => setMenuOpen(false)}
+              className="mt-2 block rounded-[1.25rem_0_1.25rem_0] border border-stone-800 px-4 py-3 text-center text-sm font-medium text-stone-300 hover:text-amber-300"
+            >
+              Account settings
+            </Link>
           )}
 
           {signedIn && (
