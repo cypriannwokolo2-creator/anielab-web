@@ -12,6 +12,24 @@ type Tab = 'email' | 'wallet'
 
 type View = 'main' | 'forgot' | 'otp'
 
+// Rough client-side strength score for the signup form — length, case,
+// digits, and special characters each add a point out of four.
+function passwordStrength(pw: string): {
+  score: number
+  label: string
+  color: string
+} {
+  if (!pw) return { score: 0, label: '', color: '' }
+  let score = 0
+  if (pw.length >= 8) score++
+  if (pw.length >= 12) score++
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++
+  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++
+  const labels = ['Weak', 'Weak', 'Okay', 'Strong', 'Very strong']
+  const colors = ['#ef4444', '#ef4444', '#f59e0b', '#84cc16', '#10b981']
+  return { score, label: labels[score], color: colors[score] }
+}
+
 export default function AuthDialog({
   open,
   onClose,
@@ -24,10 +42,13 @@ export default function AuthDialog({
   const [view, setView] = useState<View>('main')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [sentEmail, setSentEmail] = useState('')
+
+  const strength = passwordStrength(password)
 
   const { address, status, authStatus, error, signIn } = useWalletStore()
 
@@ -47,6 +68,7 @@ export default function AuthDialog({
     setOtpSent(false)
     setOtpCode('')
     setSentEmail('')
+    setConfirmPassword('')
   }
 
   async function emailSubmit(e: React.FormEvent) {
@@ -55,6 +77,14 @@ export default function AuthDialog({
     try {
       const supabase = createClient()
       if (mode === 'signup') {
+        if (password !== confirmPassword) {
+          toast.error('Passwords do not match.')
+          return
+        }
+        if (strength.score < 2) {
+          toast.error('Pick a stronger password — at least 8 characters with a mix of case, numbers, and symbols.')
+          return
+        }
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw new Error(error.message)
         toast.success('Check your inbox to confirm your email, then sign in.')
@@ -380,6 +410,59 @@ export default function AuthDialog({
                     placeholder="••••••••"
                   />
                 </label>
+                {mode === 'signup' && (
+                  <>
+                    {password && (
+                      <div className="-mt-2">
+                        <div className="flex gap-1.5">
+                          {[1, 2, 3, 4].map((i) => (
+                            <div
+                              key={i}
+                              className="h-1 flex-1 rounded-full bg-stone-800"
+                            >
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: strength.score >= i ? '100%' : '0%',
+                                  backgroundColor: strength.color,
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <p
+                          className="mt-1 text-right text-[11px] font-medium"
+                          style={{ color: strength.color }}
+                        >
+                          {strength.label}
+                        </p>
+                      </div>
+                    )}
+                    <label className="block">
+                      <span className="text-sm font-medium text-stone-300">
+                        Confirm password
+                      </span>
+                      <input
+                        type="password"
+                        required
+                        minLength={8}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`mt-1 w-full rounded-xl border bg-stone-900 px-4 py-2.5 text-sm outline-none transition ${
+                          confirmPassword && confirmPassword !== password
+                            ? 'border-red-500/60 focus:border-red-500'
+                            : 'border-stone-700 focus:border-amber-500'
+                        }`}
+                        placeholder="Repeat your password"
+                      />
+                      {confirmPassword && confirmPassword !== password && (
+                        <span className="mt-1 block text-[11px] text-red-400">
+                          Passwords don&apos;t match.
+                        </span>
+                      )}
+                    </label>
+                  </>
+                )}
                 <button
                   type="submit"
                   disabled={busy}
