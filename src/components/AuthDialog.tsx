@@ -7,6 +7,7 @@ import { Loader2, Mail, Wallet, X } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import { createClient } from '@/lib/supabase/client'
 import WalletPicker from './WalletPicker'
+import PasswordField from './PasswordField'
 
 type Tab = 'email' | 'wallet'
 
@@ -398,18 +399,12 @@ export default function AuthDialog({
                     placeholder="you@example.com"
                   />
                 </label>
-                <label className="block">
-                  <span className="text-sm font-medium text-stone-300">Password</span>
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500"
-                    placeholder="••••••••"
-                  />
-                </label>
+                <PasswordField
+                  label="Password"
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                />
                 {mode === 'signup' && (
                   <>
                     {password && (
