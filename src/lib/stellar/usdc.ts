@@ -66,8 +66,32 @@ export function formatXlm(raw: bigint): string {
  * midpoint for USDC/XLM) and falls back to NEXT_PUBLIC_XLM_USDC_RATE, then a
  * fixed default. Client-safe — used by the fund dialog for instant conversion
  * previews, while the on-chain transfer always settles in USDC.
+ *
+ * The result is cached for RATE_CACHE_TTL_MS so opening the fund dialog
+ * repeatedly doesn't hammer Horizon; use getXlmUsdcRateFresh() to force a
+ * network read.
  */
+const RATE_CACHE_TTL_MS = 60_000
+
+let cachedRate: { value: number; at: number } | null = null
+
 export async function getXlmUsdcRate(): Promise<number> {
+  if (cachedRate && Date.now() - cachedRate.at < RATE_CACHE_TTL_MS) {
+    return cachedRate.value
+  }
+  const value = await fetchXlmUsdcRate()
+  cachedRate = { value, at: Date.now() }
+  return value
+}
+
+/** Bypasses the TTL cache and re-reads the live orderbook. */
+export async function getXlmUsdcRateFresh(): Promise<number> {
+  const value = await fetchXlmUsdcRate()
+  cachedRate = { value, at: Date.now() }
+  return value
+}
+
+async function fetchXlmUsdcRate(): Promise<number> {
   const fallback = Number(process.env.NEXT_PUBLIC_XLM_USDC_RATE) || 0.12
 
   const issuer = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5'
