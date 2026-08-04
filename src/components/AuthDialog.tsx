@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { Loader2, Mail, Wallet, X } from 'lucide-react'
@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/client'
 import WalletPicker from './WalletPicker'
 
 type Tab = 'email' | 'wallet'
+
+type View = 'main' | 'forgot'
 
 export default function AuthDialog({
   open,
@@ -19,6 +21,7 @@ export default function AuthDialog({
 }) {
   const [tab, setTab] = useState<Tab>('wallet')
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [view, setView] = useState<View>('main')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -27,7 +30,18 @@ export default function AuthDialog({
 
   // The dialog only ever renders after a user click (open=true), so this is
   // always client-side — document.body is safe here, and SSR never reaches it.
+  useEffect(() => {
+    if (open) resetView()
+  }, [open])
+
   if (!open) return null
+
+  // Kick the user back to the sign-in form whenever the dialog reopens or the
+  // tab changes, so a stale "forgot password" screen never lingers around.
+  function resetView() {
+    setView('main')
+    setMode('signin')
+  }
 
   async function emailSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -54,6 +68,27 @@ export default function AuthDialog({
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Email users who lost their password get a reset link. Supabase emails the
+  // recovery link directly; the redirect target is /reset-password, which reads
+  // the recovery token out of the URL and lets them choose a new password.
+  async function forgotPasswordSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) throw new Error(error.message)
+      toast.success('Reset link sent — check your inbox.')
+      resetView()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not send reset link')
     } finally {
       setBusy(false)
     }
@@ -113,7 +148,10 @@ export default function AuthDialog({
               style={{ borderRadius: '1rem 0 1rem 0' }}
             >
               <button
-                onClick={() => setTab('wallet')}
+                onClick={() => {
+                  resetView()
+                  setTab('wallet')
+                }}
                 className={`flex flex-1 items-center justify-center gap-2 py-2 text-sm font-medium transition ${
                   tab === 'wallet'
                     ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
@@ -124,7 +162,10 @@ export default function AuthDialog({
                 <Wallet className="h-4 w-4" /> Wallet
               </button>
               <button
-                onClick={() => setTab('email')}
+                onClick={() => {
+                  resetView()
+                  setTab('email')
+                }}
                 className={`flex flex-1 items-center justify-center gap-2 py-2 text-sm font-medium transition ${
                   tab === 'email'
                     ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950'
@@ -154,6 +195,39 @@ export default function AuthDialog({
 
                 {error && <p className="text-center text-xs text-red-400">{error}</p>}
               </div>
+            ) : view === 'forgot' ? (
+              <form onSubmit={forgotPasswordSubmit} className="mt-6 space-y-4">
+                <p className="text-sm leading-relaxed text-stone-400">
+                  Enter the email you signed up with and we&apos;ll send a link
+                  to reset your password.
+                </p>
+                <label className="block">
+                  <span className="text-sm font-medium text-stone-300">Email</span>
+                  <input
+                    type="email"
+                    required
+                    autoFocus
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500"
+                    placeholder="you@example.com"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="btn-drip flex w-full items-center justify-center gap-2 py-3 disabled:opacity-60"
+                >
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send reset link'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetView}
+                  className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                >
+                  ← Back to sign in
+                </button>
+              </form>
             ) : (
               <form onSubmit={emailSubmit} className="mt-6 space-y-4">
                 <label className="block">
@@ -201,6 +275,18 @@ export default function AuthDialog({
                     ? 'New here? Create an account'
                     : 'Already have an account? Sign in'}
                 </button>
+                {mode === 'signin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin')
+                      setView('forgot')
+                    }}
+                    className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                  >
+                    Forgot your password?
+                  </button>
+                )}
               </form>
             )}
           </>
