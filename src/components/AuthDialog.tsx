@@ -10,7 +10,7 @@ import WalletPicker from './WalletPicker'
 
 type Tab = 'email' | 'wallet'
 
-type View = 'main' | 'forgot'
+type View = 'main' | 'forgot' | 'otp'
 
 export default function AuthDialog({
   open,
@@ -25,6 +25,9 @@ export default function AuthDialog({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [sentEmail, setSentEmail] = useState('')
 
   const { address, status, authStatus, error, signIn } = useWalletStore()
 
@@ -41,6 +44,9 @@ export default function AuthDialog({
   function resetView() {
     setView('main')
     setMode('signin')
+    setOtpSent(false)
+    setOtpCode('')
+    setSentEmail('')
   }
 
   async function emailSubmit(e: React.FormEvent) {
@@ -89,6 +95,56 @@ export default function AuthDialog({
       resetView()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not send reset link')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Passwordless one-time-code login: send a 6-digit code to the email, then
+  // exchange it for a session. Supabase verifies the code server-side and
+  // returns a real access + refresh token pair.
+  async function sendOtp(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOtp({ email })
+      if (error) throw new Error(error.message)
+      setSentEmail(email)
+      setOtpSent(true)
+      toast.success('One-time code sent — check your inbox.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not send code')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function verifyOtpCode(e: React.FormEvent) {
+    e.preventDefault()
+    if (!otpCode.trim()) {
+      toast.error('Enter the code from your email.')
+      return
+    }
+    setBusy(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: sentEmail || email,
+        token: otpCode.trim(),
+        type: 'email',
+      })
+      if (error) throw new Error(error.message)
+      if (data.user) {
+        const { error: linkError } = await supabase
+          .from('users')
+          .upsert({ id: data.user.id, auth_method: 'email' }, { onConflict: 'id' })
+        if (linkError) console.warn('users row link failed', linkError)
+      }
+      toast.success('Signed in.')
+      onClose()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Wrong or expired code')
     } finally {
       setBusy(false)
     }
@@ -228,6 +284,77 @@ export default function AuthDialog({
                   ← Back to sign in
                 </button>
               </form>
+            ) : view === 'otp' ? (
+              otpSent ? (
+                <form onSubmit={verifyOtpCode} className="mt-6 space-y-4">
+                  <p className="text-sm leading-relaxed text-stone-400">
+                    We sent a 6-digit code to{' '}
+                    <span className="font-medium text-stone-200">{sentEmail || email}</span>.
+                    Enter it below to sign in — no password needed.
+                  </p>
+                  <label className="block">
+                    <span className="text-sm font-medium text-stone-300">One-time code</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      required
+                      autoFocus
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-4 py-2.5 text-center font-mono text-lg tracking-[0.4em] text-amber-200 outline-none transition focus:border-amber-500"
+                      placeholder="000000"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={busy || otpCode.length < 6}
+                    className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify code'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetView}
+                    className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                  >
+                    ← Back to sign in
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={sendOtp} className="mt-6 space-y-4">
+                  <p className="text-sm leading-relaxed text-stone-400">
+                    We&apos;ll email you a one-time code — no password required.
+                  </p>
+                  <label className="block">
+                    <span className="text-sm font-medium text-stone-300">Email</span>
+                    <input
+                      type="email"
+                      required
+                      autoFocus
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500"
+                      placeholder="you@example.com"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send code'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetView}
+                    className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                  >
+                    ← Back to sign in
+                  </button>
+                </form>
+              )
             ) : (
               <form onSubmit={emailSubmit} className="mt-6 space-y-4">
                 <label className="block">
@@ -276,16 +403,28 @@ export default function AuthDialog({
                     : 'Already have an account? Sign in'}
                 </button>
                 {mode === 'signin' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('signin')
-                      setView('forgot')
-                    }}
-                    className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
-                  >
-                    Forgot your password?
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('signin')
+                        setView('forgot')
+                      }}
+                      className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                    >
+                      Forgot your password?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('signin')
+                        setView('otp')
+                      }}
+                      className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                    >
+                      Sign in with a one-time code instead
+                    </button>
+                  </>
                 )}
               </form>
             )}
