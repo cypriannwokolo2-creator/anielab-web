@@ -21,7 +21,7 @@ export default function ProjectCard({ project }: { project: Project }) {
         {project.cover_ipfs_cid ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={`https://${process.env.NEXT_PUBLIC_PINATA_GATEWAY}/ipfs/${project.cover_ipfs_cid}`}
+            src={`${process.env.NEXT_PUBLIC_MEDIA_BASE_URL}/${project.cover_ipfs_cid}`}
             alt={project.title}
             className="h-full w-full object-cover"
           />

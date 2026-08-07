@@ -20,9 +20,23 @@ FROM node:20-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # NEXT_PUBLIC_* vars are inlined into the client bundle at BUILD time, not at
-# runtime. Pass them as build env/args when building the image (see
-# .env.example) — otherwise the shipped client won't know its Supabase /
-# backend / Stellar endpoints.
+# runtime. deploy.sh sources .env and passes these as --build-arg; the VM
+# .env must set them BEFORE the image is built. Without them the shipped
+# client doesn't know its Supabase / backend / Stellar endpoints.
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_STELLAR_NETWORK
+ARG NEXT_PUBLIC_SOROBAN_RPC_URL
+ARG NEXT_PUBLIC_USDC_SAC_TESTNET
+ARG NEXT_PUBLIC_BACKEND_URL
+ARG NEXT_PUBLIC_MEDIA_BASE_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_STELLAR_NETWORK=$NEXT_PUBLIC_STELLAR_NETWORK
+ENV NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL
+ENV NEXT_PUBLIC_USDC_SAC_TESTNET=$NEXT_PUBLIC_USDC_SAC_TESTNET
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_MEDIA_BASE_URL=$NEXT_PUBLIC_MEDIA_BASE_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
