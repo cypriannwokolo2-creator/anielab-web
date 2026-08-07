@@ -1,0 +1,48 @@
+# Dependencies — reinstalled inside the image via `npm ci`. The host
+# node_modules may be platform-mismatched (Windows native binaries) and
+# must never be copied into the Linux image.
+/node_modules
+/.pnp
+/.yarn
+
+# Build output — produced fresh inside the image.
+/.next
+/out
+/build
+/coverage
+
+# Secrets & local env — must never be baked into the image (ADR-001: the web
+# app holds only the anon key + public URLs; even those are injected at
+# runtime via env/compose, not baked in).
+/.env
+/.env.*
+!/.env.example
+
+# Vercel deploy cache.
+/.vercel
+
+# Version control & CI config.
+/.git
+/.github
+
+# Docs & AI assistant config — not needed at runtime.
+/README.md
+/AGENTS.md
+/CLAUDE.md
+
+# TypeScript incremental build artifacts (regenerated during build).
+/*.tsbuildinfo
+/next-env.d.ts
+
+# Logs & OS cruft.
+npm-debug.log*
+*.pem
+.DS_Store
+
+# Docker self-reference.
+/Dockerfile
+/.dockerignore
+
+# NOTE: do NOT add /vendor here. src/lib/stellar/bindings.ts imports the
+# pre-built revenue-splitter bindings from vendor/revenue-splitter/dist/,
+# which is required at build time.
