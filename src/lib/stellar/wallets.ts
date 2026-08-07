@@ -68,7 +68,7 @@ async function initKit(): Promise<KitCore> {
           name: 'AnieLab',
           description:
             'Co-create anime, comics & games — get paid exactly for your share.',
-          url: typeof window !== 'undefined' ? window.location.origin : 'https://anielab.xyz',
+          url: typeof window !== 'undefined' ? window.location.origin : 'https://anielab.app',
           icons: [],
         },
         allowedChains: [WalletConnectTargetChain.TESTNET],
