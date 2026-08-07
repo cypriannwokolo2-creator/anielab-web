@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Loader2, Mail, Wallet, X } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import { createClient } from '@/lib/supabase/client'
+import { APP_HOST, APP_URL, DASHBOARD_PATH } from '@/lib/hosts'
 import WalletPicker from './WalletPicker'
 import PasswordField from './PasswordField'
 
@@ -86,6 +87,17 @@ export default function AuthDialog({
     setResendIn(0)
   }
 
+  // The dialog only ever opens on the landing host (the app host redirects
+  // signed-out visitors away before they reach it), so a successful sign-in
+  // should always land in the app: jump to the dashboard. On the app host
+  // itself this is a no-op.
+  function onAuthSuccess() {
+    onClose()
+    if (window.location.hostname !== APP_HOST) {
+      window.location.href = `${APP_URL}${DASHBOARD_PATH}`
+    }
+  }
+
   async function emailSubmit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
@@ -115,7 +127,7 @@ export default function AuthDialog({
           if (linkError) console.warn('users row link failed', linkError)
         }
         toast.success('Signed in.')
-        onClose()
+        onAuthSuccess()
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong')
@@ -189,7 +201,7 @@ export default function AuthDialog({
         if (linkError) console.warn('users row link failed', linkError)
       }
       toast.success('Signed in.')
-      onClose()
+      onAuthSuccess()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Wrong or expired code')
     } finally {
@@ -201,7 +213,7 @@ export default function AuthDialog({
     await signIn(providerId)
     if (useWalletStore.getState().authStatus === 'authenticated') {
       toast.success('Signed in with wallet.')
-      onClose()
+      onAuthSuccess()
     }
   }
 

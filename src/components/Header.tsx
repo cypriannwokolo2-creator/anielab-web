@@ -6,6 +6,7 @@ import { ChevronDown, LogOut, Menu, Settings, Wallet, X } from 'lucide-react'
 import Logo from './Logo'
 import AuthDialog from './AuthDialog'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
+import { APP_HOST, APP_URL } from '@/lib/hosts'
 
 const exploreItems = [
   {
@@ -54,11 +55,21 @@ export default function Header() {
   const [exploreOpen, setExploreOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  // Which public host this header renders on. Kept in state (not read straight
+  // from window) so SSR and the first client render agree, then the mount
+  // effect flips it — no hydration mismatch.
+  const [host, setHost] = useState<string | null>(null)
   const exploreRef = useRef<HTMLDivElement>(null)
   const accountRef = useRef<HTMLDivElement>(null)
 
   const { address, authStatus, session, signOut, restoreSession } = useWalletStore()
   const signedIn = authStatus === 'authenticated'
+
+  const isApp = host === APP_HOST
+  // On the landing host every app link must jump hosts — relative links would
+  // bounce off the middleware back to the landing page. On the app host they
+  // stay relative.
+  const appHref = (path: string) => (isApp ? path : `${APP_URL}${path}`)
 
   const accountLabel = session?.user?.email ?? address ?? ''
   const initials = (accountLabel.trim()[0] ?? '').toUpperCase()
@@ -66,6 +77,10 @@ export default function Header() {
   useEffect(() => {
     void restoreSession()
   }, [restoreSession])
+
+  useEffect(() => {
+    setHost(window.location.hostname)
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setRaised(window.scrollY > 8)
@@ -107,7 +122,7 @@ export default function Header() {
     >
       <div className="flex items-center justify-between px-4 py-3 sm:px-5">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href={isApp ? '/dashboard' : '/'} className="flex items-center gap-2.5">
             <Logo className="h-8 w-8" />
             <span className="text-lg font-bold tracking-tight sm:text-xl">
               <span className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent">
@@ -140,8 +155,16 @@ export default function Header() {
                   {exploreItems.map((item) => (
                     <Link
                       key={item.title}
-                      href={item.href}
-                      onClick={() => setExploreOpen(false)}
+                      href={appHref(item.href)}
+                      onClick={(e) => {
+                        // Signed-out landing visitors would just bounce off
+                        // the app host's auth wall — open the dialog instead.
+                        if (!isApp && !signedIn) {
+                          e.preventDefault()
+                          setDialogOpen(true)
+                        }
+                        setExploreOpen(false)
+                      }}
                       className={`group flex flex-col gap-0.5 rounded-[0.9rem_0_0.9rem_0.9rem] px-3.5 py-3 transition hover:bg-stone-900 ${
                         item.soon ? 'pointer-events-none opacity-50' : ''
                       }`}
@@ -177,15 +200,16 @@ export default function Header() {
               )}
             </div>
 
-            {topLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="text-sm text-stone-300 underline-offset-4 transition hover:text-amber-300 hover:underline"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {!isApp &&
+              topLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm text-stone-300 underline-offset-4 transition hover:text-amber-300 hover:underline"
+                >
+                  {link.label}
+                </Link>
+              ))}
           </nav>
         </div>
 
@@ -198,7 +222,7 @@ export default function Header() {
           {signedIn ? (
             <>
               <Link
-                href="/create"
+                href={appHref('/create')}
                 className="relative block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
               >
                 Start a project
@@ -230,7 +254,7 @@ export default function Header() {
                     </div>
                     <div className="py-1">
                       <Link
-                        href="/account"
+                        href={appHref('/account')}
                         onClick={() => setAccountOpen(false)}
                         className="flex items-center gap-2.5 rounded-[0.9rem_0_0.9rem_0.9rem] px-3.5 py-2.5 text-sm text-stone-300 transition hover:bg-stone-900 hover:text-amber-300"
                       >
@@ -293,8 +317,14 @@ export default function Header() {
             {exploreItems.map((item) => (
               <Link
                 key={item.title}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
+                href={appHref(item.href)}
+                onClick={(e) => {
+                  if (!isApp && !signedIn) {
+                    e.preventDefault()
+                    setDialogOpen(true)
+                  }
+                  setMenuOpen(false)
+                }}
                 className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-stone-300 transition hover:bg-stone-900 hover:text-amber-300 ${
                   item.soon ? 'pointer-events-none opacity-50' : ''
                 }`}
@@ -323,7 +353,7 @@ export default function Header() {
 
           {signedIn ? (
             <Link
-              href="/create"
+              href={appHref('/create')}
               onClick={() => setMenuOpen(false)}
               className="mt-2 block rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
             >
@@ -343,7 +373,7 @@ export default function Header() {
 
           {signedIn && (
             <Link
-              href="/account"
+              href={appHref('/account')}
               onClick={() => setMenuOpen(false)}
               className="mt-2 block rounded-[1.25rem_0_1.25rem_0] border border-stone-800 px-4 py-3 text-center text-sm font-medium text-stone-300 hover:text-amber-300"
             >

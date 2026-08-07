@@ -7,6 +7,7 @@ import FAQSection from '@/components/FAQSection'
 import Footer from '@/components/Footer'
 import ConnectWalletButton from '@/components/ConnectWalletButton'
 import { createClient } from '@/lib/supabase/server'
+import { APP_URL } from '@/lib/hosts'
 
 export const dynamic = 'force-dynamic'
 
@@ -230,7 +231,7 @@ export default async function Home() {
               <h2 className="text-2xl font-bold">Active projects</h2>
             </div>
           </div>
-          <Link href="/create" className="text-sm text-amber-400 hover:text-amber-300">
+          <Link href={`${APP_URL}/create`} className="text-sm text-amber-400 hover:text-amber-300">
             Create one →
           </Link>
         </div>
@@ -247,7 +248,7 @@ export default async function Home() {
               No projects on the feed yet — the first one gets to set the trend.
             </p>
             <Link
-              href="/create"
+              href={`${APP_URL}/create`}
               className="mt-4 inline-block rounded-full px-4 py-1.5 text-sm font-medium text-amber-400 transition hover:bg-amber-500/10 hover:text-amber-300"
             >
               Be the first →
@@ -266,7 +267,7 @@ export default async function Home() {
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           <Link
-            href="/fund"
+            href={`${APP_URL}/fund`}
             className="group rounded-3xl border border-stone-800 bg-stone-900/60 p-8 transition hover:border-amber-500/60"
           >
             <h3 className="text-2xl font-bold group-hover:text-amber-300">
@@ -283,7 +284,7 @@ export default async function Home() {
             </span>
           </Link>
           <Link
-            href="/challenges"
+            href={`${APP_URL}/challenges`}
             className="group rounded-3xl border border-stone-800 bg-stone-900/60 p-8 transition hover:border-amber-500/60"
           >
             <h3 className="text-2xl font-bold group-hover:text-amber-300">

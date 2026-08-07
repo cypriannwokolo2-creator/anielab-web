@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Wallet } from 'lucide-react'
 import AuthDialog from './AuthDialog'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
+import { APP_HOST, APP_URL } from '@/lib/hosts'
 
 /**
  * Primary signup CTA — opens the wallet-first auth dialog so users can create
@@ -19,6 +20,14 @@ export default function ConnectWalletButton({
   const authStatus = useWalletStore((s) => s.authStatus)
   const signedIn = authStatus === 'authenticated'
 
+  // Only ever read after mount (signedIn itself flips post-mount when the
+  // session restores), so SSR and first client render stay in sync.
+  const [host, setHost] = useState<string | null>(null)
+  useEffect(() => {
+    setHost(window.location.hostname)
+  }, [])
+  const createHref = host === APP_HOST ? '/create' : `${APP_URL}/create`
+
   const className =
     variant === 'ghost'
       ? 'btn-drip-ghost bg-stone-900/60 px-7 py-3'
@@ -27,7 +36,7 @@ export default function ConnectWalletButton({
   return (
     <>
       {signedIn ? (
-        <a href="/create" className={className}>
+        <a href={createHref} className={className}>
           Start a project
         </a>
       ) : (
