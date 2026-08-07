@@ -19,6 +19,11 @@ RUN npm ci
 FROM node:22-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# 1 GiB-RAM VMs (B2als_v2): V8's default 2 GiB heap per build worker lets
+# concurrent workers collectively exceed RAM+swap and die with V8 OOM
+# (FatalProcessOutOfMemory). Cap each process so the sum fits. Slower, but
+# it finishes. Raise/remove when building on a 4 GiB+ host.
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 # NEXT_PUBLIC_* vars are inlined into the client bundle at BUILD time, not at
 # runtime. deploy.sh sources .env and passes these as --build-arg; the VM
 # .env must set them BEFORE the image is built. Without them the shipped
