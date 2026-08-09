@@ -34,7 +34,7 @@ interface WalletState {
   hydrated: boolean
   restoreSession: () => Promise<void>
   connect: (providerId: string) => Promise<void>
-  signIn: (providerId: string) => Promise<void>
+  signIn: (providerId: string, roles?: string[]) => Promise<void>
   signOut: () => Promise<void>
   disconnect: () => void
 }
@@ -115,8 +115,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   // work for wallet users exactly like email users — including refresh.
   // providerId may be a specific extension ('freighter') or the Stellar
   // Wallets Kit ('stellar-kit'), which lets the user pick any wallet — Freighter,
-  // Rabet, LOBSTR, xBull, Albedo, Hana, or WalletConnect.
-  signIn: async (providerId: string) => {
+  // Rabet, LOBSTR, xBull, Albedo, Hana, or WalletConnect. Roles picked during
+  // signup ride along so new users get them written into their profile.
+  signIn: async (providerId: string, roles?: string[]) => {
     set({ authStatus: 'signing', error: null })
     try {
       let address = get().address
@@ -144,6 +145,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         body: JSON.stringify({
           stellarAddress: address,
           nonce: challenge.nonce,
+          roles: Array.isArray(roles) && roles.length > 0 ? roles : undefined,
           ...sig,
         }),
       })
