@@ -54,7 +54,6 @@ export default function ChallengesPage() {
 
   // Admin create form
   const [showCreate, setShowCreate] = useState(false)
-  const [adminPassword, setAdminPassword] = useState('')
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newTheme, setNewTheme] = useState('')
@@ -175,6 +174,12 @@ export default function ChallengesPage() {
       toast.error('Sign in first')
       return
     }
+    const { getAdminToken } = await import('@/lib/admin/token')
+    const adminToken = getAdminToken()
+    if (!adminToken) {
+      toast.error('Unlock the admin panel at /admin first')
+      return
+    }
 
     try {
       const res = await fetch(`${BACKEND}/api/challenges`, {
@@ -182,7 +187,7 @@ export default function ChallengesPage() {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-          'X-Admin-Password': adminPassword,
+          'X-Admin-Token': adminToken,
         },
         body: JSON.stringify({
           title: newTitle,
@@ -204,7 +209,6 @@ export default function ChallengesPage() {
       setNewDescription('')
       setNewTheme('')
       setNewPrize('')
-      setAdminPassword('')
       loadChallenges()
     } catch {
       toast.error('Failed to create challenge')
@@ -240,7 +244,6 @@ export default function ChallengesPage() {
         <div className="mt-6 rounded-2xl border border-amber-500/30 bg-stone-900/80 p-6">
           <h3 className="text-lg font-semibold">New Challenge</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <input value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Admin password" type="password" className="rounded-xl border border-stone-700 bg-stone-800 px-4 py-2 text-sm outline-none focus:border-amber-500" />
             <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Challenge title" className="rounded-xl border border-stone-700 bg-stone-800 px-4 py-2 text-sm outline-none focus:border-amber-500" />
             <input value={newTheme} onChange={(e) => setNewTheme(e.target.value)} placeholder="Theme (e.g. Design a rival mech)" className="rounded-xl border border-stone-700 bg-stone-800 px-4 py-2 text-sm outline-none focus:border-amber-500" />
             <input value={newPrize} onChange={(e) => setNewPrize(e.target.value)} placeholder="Prize pool (USDC)" type="number" className="rounded-xl border border-stone-700 bg-stone-800 px-4 py-2 text-sm outline-none focus:border-amber-500" />

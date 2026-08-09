@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { getAdminToken } from '@/lib/admin/token'
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
 
@@ -18,7 +19,6 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false)
   const [feeBps, setFeeBps] = useState('')
   const [wallet, setWallet] = useState('')
-  const [adminPw, setAdminPw] = useState('')
 
   useEffect(() => {
     loadSettings()
@@ -41,10 +41,10 @@ export default function AdminSettings() {
   async function handleSave() {
     setSaving(true)
     try {
-      // Get admin password from cookie or input.
-      const password = adminPw || getCookie('admin_password')
-      if (!password) {
-        toast.error('Enter admin password')
+      // Admin session token issued after the password + OTP unlock.
+      const adminToken = getAdminToken()
+      if (!adminToken) {
+        toast.error('Admin session expired — unlock the panel again')
         return
       }
 
@@ -61,7 +61,7 @@ export default function AdminSettings() {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
-          'X-Admin-Password': password,
+          'X-Admin-Token': adminToken,
         },
         body: JSON.stringify({
           platform_fee_bps: Number(feeBps),
@@ -120,19 +120,6 @@ export default function AdminSettings() {
         </label>
       </div>
 
-      <details className="mt-4">
-        <summary className="cursor-pointer text-xs text-stone-500 hover:text-stone-300">
-          Admin password (if not using cookie)
-        </summary>
-        <input
-          type="password"
-          value={adminPw}
-          onChange={(e) => setAdminPw(e.target.value)}
-          placeholder="Admin password"
-          className="mt-2 w-full rounded-xl border border-stone-700 bg-stone-800 px-4 py-2 text-sm outline-none focus:border-amber-500"
-        />
-      </details>
-
       <button
         onClick={handleSave}
         disabled={saving}
@@ -148,10 +135,4 @@ export default function AdminSettings() {
       )}
     </div>
   )
-}
-
-function getCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))
-  return match ? decodeURIComponent(match[1]) : null
 }

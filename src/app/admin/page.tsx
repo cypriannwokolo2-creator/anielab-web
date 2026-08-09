@@ -2,8 +2,10 @@ import Link from 'next/link'
 import { Coins, FolderOpen, UserRound, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatUsdc } from '@/lib/stellar/usdc'
-import { requireAdmin } from '@/lib/admin/guard'
+import { isAdminSessionValid } from '@/lib/admin/guard'
 import AdminSettings from '@/components/AdminSettings'
+import AdminChangePassword from '@/components/AdminChangePassword'
+import AdminLogin from '@/components/AdminLogin'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +15,10 @@ export const metadata = {
 }
 
 export default async function AdminPage() {
-  await requireAdmin()
+  const authorized = await isAdminSessionValid()
+  if (!authorized) {
+    return <AdminLogin />
+  }
 
   const supabase = await createClient()
 
@@ -118,6 +123,14 @@ export default async function AdminPage() {
         <h2 className="text-lg font-semibold">Platform Settings</h2>
         <div className="mt-4">
           <AdminSettings />
+        </div>
+      </section>
+
+      {/* Admin password management */}
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold">Security</h2>
+        <div className="mt-4">
+          <AdminChangePassword />
         </div>
       </section>
     </div>

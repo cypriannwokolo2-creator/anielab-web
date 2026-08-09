@@ -1,34 +1,36 @@
-import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
+
 /**
- * Admin guard — checks that:
- * 1. The user has a valid Supabase session.
- * 2. The `admin_password` cookie matches the ADMIN_PASSWORD env var.
+ * Admin guard — validates the signed admin session token (`admin_token`
+ * cookie) against the backend, which checks it alongside the user's
+ * Supabase session. Returns false instead of redirecting so the page can
+ * render the admin login form (password + OTP).
  *
- * If either check fails, redirect to the landing page.
- * The admin password cookie is set by the client-side admin login flow
- * after a successful POST to /api/admin/auth on the backend.
+ * The admin password itself is never seen by the frontend server: it is
+ * verified by the backend against a hashed record in Supabase.
  */
-export async function requireAdmin(): Promise<void> {
-  const expected = process.env.ADMIN_PASSWORD
-  if (!expected) {
-    // ADMIN_PASSWORD not configured — deny access.
-    redirect('/')
-  }
-
-  // Check Supabase session.
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    redirect('/')
-  }
-
-  // Check admin password cookie.
+export async function isAdminSessionValid(): Promise<boolean> {
   const cookieStore = await cookies()
-  const adminPw = cookieStore.get('admin_password')?.value
-  if (!adminPw || adminPw !== expected) {
-    redirect('/')
+  const token = cookieStore.get('admin_token')?.value
+  if (!token) return false
+
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) return false
+
+  try {
+    const res = await fetch(`${BACKEND}/api/admin/session`, {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'X-Admin-Token': token,
+      },
+      cache: 'no-store',
+    })
+    return res.ok
+  } catch {
+    return false
   }
 }
