@@ -3,6 +3,7 @@ import { Check, Coins, Handshake, PenTool } from 'lucide-react'
 import FundingBoard from '@/components/FundingBoard'
 import ProjectCard from '@/components/ProjectCard'
 import RoleMarquee from '@/components/RoleMarquee'
+import BuiltOn from '@/components/BuiltOn'
 import FAQSection from '@/components/FAQSection'
 import Footer from '@/components/Footer'
 import ConnectWalletButton from '@/components/ConnectWalletButton'
@@ -144,21 +145,7 @@ export default async function Home() {
       <RoleMarquee />
 
       {/* built on */}
-      <section className="border-y border-stone-800/60 bg-stone-900/30 py-6">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-6 text-sm text-stone-500">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-stone-500">
-            Built on
-          </span>
-          {['Stellar', 'Soroban', 'IPFS', 'WalletConnect', 'Supabase'].map((tech) => (
-            <span
-              key={tech}
-              className="font-mono text-xs text-stone-400 transition hover:text-amber-300"
-            >
-              {tech}
-            </span>
-          ))}
-        </div>
-      </section>
+      <BuiltOn />
 
       {/* needs funding */}
       <div id="contract" className="scroll-mt-20 pb-16 pt-16">
