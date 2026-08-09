@@ -278,7 +278,7 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                     )}
                     {currency === 'XLM' && rate != null && (
                       <p className="mt-1 text-[11px] text-stone-600">
-                        1 XLM ≈ ${rate.toFixed(4)} USDC (live orderbook rate)
+                        1 XLM ≈ ${rate.toFixed(4)} USDC (live rate)
                       </p>
                     )}
                   </div>

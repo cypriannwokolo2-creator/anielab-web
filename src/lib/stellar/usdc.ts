@@ -62,13 +62,18 @@ export function formatXlm(raw: bigint): string {
 }
 
 /**
- * Live XLM→USDC rate. Tries the Stellar testnet DEX orderbook (best bid/ask
- * midpoint for USDC/XLM) and falls back to NEXT_PUBLIC_XLM_USDC_RATE, then a
- * fixed default. Client-safe — used by the fund dialog for instant conversion
- * previews, while the on-chain transfer always settles in USDC.
+ * Live XLM→USDC rate. Tries, in order:
+ *   1. The Stellar testnet DEX orderbook for USDC/XLM (best bid/ask midpoint)
+ *      using the project's USDC issuer.
+ *   2. The live XLM market price (CoinGecko) — USDC tracks $1, so the
+ *      XLM→USD price is a sound XLM→USDC estimate whenever the testnet
+ *      orderbook has no liquidity (which is most of the time).
+ *   3. NEXT_PUBLIC_XLM_USDC_RATE, then a fixed default.
+ * Client-safe — used by the fund dialog for instant conversion previews,
+ * while the on-chain transfer always settles in USDC.
  *
  * The result is cached for RATE_CACHE_TTL_MS so opening the fund dialog
- * repeatedly doesn't hammer Horizon; use getXlmUsdcRateFresh() to force a
+ * repeatedly doesn't hammer the APIs; use getXlmUsdcRateFresh() to force a
  * network read.
  */
 const RATE_CACHE_TTL_MS = 60_000
@@ -84,7 +89,7 @@ export async function getXlmUsdcRate(): Promise<number> {
   return value
 }
 
-/** Bypasses the TTL cache and re-reads the live orderbook. */
+/** Bypasses the TTL cache and re-reads the live rate. */
 export async function getXlmUsdcRateFresh(): Promise<number> {
   const value = await fetchXlmUsdcRate()
   cachedRate = { value, at: Date.now() }
@@ -94,7 +99,20 @@ export async function getXlmUsdcRateFresh(): Promise<number> {
 async function fetchXlmUsdcRate(): Promise<number> {
   const fallback = Number(process.env.NEXT_PUBLIC_XLM_USDC_RATE) || 0.12
 
-  const issuer = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5'
+  const dex = await fetchOrderbookRate()
+  if (dex != null) return dex
+
+  const market = await fetchMarketRate()
+  if (market != null) return market
+
+  return fallback
+}
+
+/** Midpoint of the live USDC/XLM orderbook, or null when there's no liquidity. */
+async function fetchOrderbookRate(): Promise<number | null> {
+  const issuer =
+    process.env.NEXT_PUBLIC_USDC_SAC_TESTNET ??
+    'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA'
   const url =
     `https://horizon-testnet.stellar.org/order_book` +
     `?selling_asset_type=native` +
@@ -104,7 +122,7 @@ async function fetchXlmUsdcRate(): Promise<number> {
 
   try {
     const res = await fetch(url, { cache: 'no-store' })
-    if (!res.ok) return fallback
+    if (!res.ok) return null
     const data = (await res.json()) as { bids?: { price: string }[]; asks?: { price: string }[] }
     const bid = Number(data.bids?.[0]?.price)
     const ask = Number(data.asks?.[0]?.price)
@@ -112,8 +130,25 @@ async function fetchXlmUsdcRate(): Promise<number> {
       return (bid + ask) / 2
     }
     if (Number.isFinite(bid) && bid > 0) return bid
-    return fallback
+    return null
   } catch {
-    return fallback
+    return null
+  }
+}
+
+/** Live XLM market price in USD (≈ USDC, since USDC tracks $1). */
+async function fetchMarketRate(): Promise<number | null> {
+  try {
+    const res = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd',
+      { cache: 'no-store' }
+    )
+    if (!res.ok) return null
+    const data = (await res.json()) as { stellar?: { usd?: number } }
+    const price = data.stellar?.usd
+    if (Number.isFinite(price) && (price as number) > 0) return price as number
+    return null
+  } catch {
+    return null
   }
 }
