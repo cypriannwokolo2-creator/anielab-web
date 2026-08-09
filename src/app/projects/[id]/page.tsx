@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { Coins, Users, Flag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { blurFor } from '@/lib/coverBlur'
 import { formatUsdc, usdcPercent } from '@/lib/stellar/usdc'
 import ShareButton from '@/components/ShareButton'
 import ProjectManagement from '@/components/ProjectManagement'
@@ -82,6 +83,8 @@ export default async function ProjectPage({
             alt={project.title}
             fill
             className="object-cover"
+            placeholder="blur"
+            blurDataURL={blurFor(project.cover_ipfs_cid)}
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 to-transparent" />

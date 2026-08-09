@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { blurFor } from '@/lib/coverBlur'
 
 interface Project {
   id: string
@@ -47,6 +48,8 @@ export default function ProjectCard({ project }: { project: Project }) {
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
+            placeholder="blur"
+            blurDataURL={blurFor(project.cover_ipfs_cid)}
             onError={() => setImgError(true)}
           />
         ) : (
