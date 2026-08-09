@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
 import { HandCoins, UserPlus } from 'lucide-react'
 import AuthDialog from './AuthDialog'
+import { useAuthDialog } from '@/lib/useAuthDialog'
 
 /** CTA strip for the live ledger — both actions need a connected wallet. */
 export default function LedgerActions() {
-  const [open, setOpen] = useState(false)
+  const openDialog = useAuthDialog((s) => s.openDialog)
 
   return (
     <>
@@ -17,14 +17,14 @@ export default function LedgerActions() {
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => openDialog()}
             className="btn-drip inline-flex items-center gap-2 px-5 py-2.5 text-sm"
           >
             <HandCoins className="h-4 w-4" />
             Fund this project
           </button>
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => openDialog()}
             className="btn-drip-ghost inline-flex items-center gap-2 bg-stone-900/60 px-5 py-2.5 text-sm"
           >
             <UserPlus className="h-4 w-4" />
@@ -32,7 +32,7 @@ export default function LedgerActions() {
           </button>
         </div>
       </div>
-      <AuthDialog open={open} onClose={() => setOpen(false)} />
+      <AuthDialog />
     </>
   )
 }

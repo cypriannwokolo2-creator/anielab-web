@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import { Loader2, Mail, Wallet, X } from 'lucide-react'
+import { Loader2, Mail, Wallet, X, Check } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
+import { useAuthDialog } from '@/lib/useAuthDialog'
 import { createClient } from '@/lib/supabase/client'
 import { APP_HOST, APP_URL, DASHBOARD_PATH } from '@/lib/hosts'
 import WalletPicker from './WalletPicker'
@@ -13,6 +14,68 @@ import PasswordField from './PasswordField'
 type Tab = 'email' | 'wallet'
 
 type View = 'main' | 'forgot' | 'otp'
+
+const AVAILABLE_ROLES = [
+  'Writer',
+  'Illustrator',
+  'Composer',
+  'Voice Actor',
+  'Developer',
+  'Producer',
+  'Designer',
+  'Backer',
+] as const
+
+function RolePicker({
+  selected,
+  onChange,
+}: {
+  selected: string[]
+  onChange: (roles: string[]) => void
+}) {
+  function toggle(role: string) {
+    if (selected.includes(role)) {
+      onChange(selected.filter((r) => r !== role))
+    } else if (selected.length < 3) {
+      onChange([...selected, role])
+    } else {
+      toast.error('You can select up to 3 roles.')
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-stone-300">Pick your roles</span>
+        <span className={`text-xs font-medium ${selected.length >= 3 ? 'text-amber-400' : 'text-stone-500'}`}>
+          {selected.length}/3
+        </span>
+      </div>
+      <p className="text-xs text-stone-500">Choose up to 3. You can change these later in your account settings.</p>
+      <div className="flex flex-wrap gap-2">
+        {AVAILABLE_ROLES.map((role) => {
+          const active = selected.includes(role)
+          return (
+            <button
+              key={role}
+              type="button"
+              onClick={() => toggle(role)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                active
+                  ? 'border-amber-500 bg-amber-500/15 text-amber-300'
+                  : 'border-stone-700 bg-stone-900 text-stone-400 hover:border-stone-500 hover:text-stone-300'
+              } ${!active && selected.length >= 3 ? 'opacity-40 cursor-not-allowed' : ''}`}
+              disabled={!active && selected.length >= 3}
+            >
+              {active && <Check className="h-3 w-3" />}
+              {role}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 // Rough client-side strength score for the signup form — length, case,
 // digits, and special characters each add a point out of four.
@@ -32,13 +95,10 @@ function passwordStrength(pw: string): {
   return { score, label: labels[score], color: colors[score] }
 }
 
-export default function AuthDialog({
-  open,
-  onClose,
-}: {
-  open: boolean
-  onClose: () => void
-}) {
+export default function AuthDialog() {
+  const open = useAuthDialog((s) => s.open)
+  const initialRole = useAuthDialog((s) => s.initialRole)
+  const onClose = useAuthDialog((s) => s.closeDialog)
   const [tab, setTab] = useState<Tab>('wallet')
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [view, setView] = useState<View>('main')
@@ -50,6 +110,7 @@ export default function AuthDialog({
   const [otpCode, setOtpCode] = useState('')
   const [sentEmail, setSentEmail] = useState('')
   const [resendIn, setResendIn] = useState(0)
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
 
   const strength = passwordStrength(password)
 
@@ -70,8 +131,17 @@ export default function AuthDialog({
   // The dialog only ever renders after a user click (open=true), so this is
   // always client-side — document.body is safe here, and SSR never reaches it.
   useEffect(() => {
-    if (open) resetView()
-  }, [open])
+    if (open) {
+      resetView()
+      // Pre-select a role (e.g. from a "Who it's for" card) and jump straight
+      // to the email signup form where the role picker lives.
+      if (initialRole && (AVAILABLE_ROLES as readonly string[]).includes(initialRole)) {
+        setSelectedRoles([initialRole])
+        setMode('signup')
+        setTab('email')
+      }
+    }
+  }, [open, initialRole])
 
   if (!open) return null
 
@@ -85,6 +155,7 @@ export default function AuthDialog({
     setSentEmail('')
     setConfirmPassword('')
     setResendIn(0)
+    setSelectedRoles([])
   }
 
   // The dialog only ever opens on the landing host (the app host redirects
@@ -112,7 +183,13 @@ export default function AuthDialog({
           toast.error('Pick a stronger password — at least 8 characters with a mix of case, numbers, and symbols.')
           return
         }
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { roles: selectedRoles },
+          },
+        })
         if (error) throw new Error(error.message)
         toast.success('Check your inbox to confirm your email, then sign in.')
         setMode('signin')
@@ -210,7 +287,7 @@ export default function AuthDialog({
   }
 
   async function walletSignIn(providerId: string) {
-    await signIn(providerId)
+    await signIn(providerId, selectedRoles)
     if (useWalletStore.getState().authStatus === 'authenticated') {
       toast.success('Signed in with wallet.')
       onAuthSuccess()
@@ -299,6 +376,8 @@ export default function AuthDialog({
                   Albedo, Hana, and more. Your public address is used as your
                   AnieLab account.
                 </p>
+
+                <RolePicker selected={selectedRoles} onChange={setSelectedRoles} />
 
                 {walletBusy ? (
                   <div className="flex items-center justify-center gap-2 rounded-xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-sm text-stone-400">
@@ -490,6 +569,7 @@ export default function AuthDialog({
                         </span>
                       )}
                     </label>
+                    <RolePicker selected={selectedRoles} onChange={setSelectedRoles} />
                   </>
                 )}
                 <button

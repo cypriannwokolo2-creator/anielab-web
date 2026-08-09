@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Wallet } from 'lucide-react'
 import AuthDialog from './AuthDialog'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
+import { useAuthDialog } from '@/lib/useAuthDialog'
 import { APP_HOST, APP_URL } from '@/lib/hosts'
 
 /**
@@ -16,7 +17,7 @@ export default function ConnectWalletButton({
 }: {
   variant?: 'primary' | 'ghost'
 }) {
-  const [open, setOpen] = useState(false)
+  const openDialog = useAuthDialog((s) => s.openDialog)
   const authStatus = useWalletStore((s) => s.authStatus)
   const signedIn = authStatus === 'authenticated'
 
@@ -40,14 +41,14 @@ export default function ConnectWalletButton({
           Start a project
         </a>
       ) : (
-        <button onClick={() => setOpen(true)} className={className}>
+        <button onClick={() => openDialog()} className={className}>
           <span className="flex items-center gap-2">
             <Wallet className="h-4 w-4" />
             Connect wallet
           </span>
         </button>
       )}
-      <AuthDialog open={open} onClose={() => setOpen(false)} />
+      <AuthDialog />
     </>
   )
 }
