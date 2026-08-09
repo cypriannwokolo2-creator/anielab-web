@@ -6,6 +6,7 @@ import { ChevronDown, LogOut, Menu, Settings, Wallet, X } from 'lucide-react'
 import Logo from './Logo'
 import AuthDialog from './AuthDialog'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
+import { useAuthDialog } from '@/lib/useAuthDialog'
 import { APP_HOST, APP_URL } from '@/lib/hosts'
 
 const exploreItems = [
@@ -54,7 +55,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [exploreOpen, setExploreOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const openDialog = useAuthDialog((s) => s.openDialog)
   // Which public host this header renders on. Kept in state (not read straight
   // from window) so SSR and the first client render agree, then the mount
   // effect flips it — no hydration mismatch.
@@ -161,7 +162,7 @@ export default function Header() {
                         // the app host's auth wall — open the dialog instead.
                         if (!isApp && !signedIn) {
                           e.preventDefault()
-                          setDialogOpen(true)
+                          openDialog()
                         }
                         setExploreOpen(false)
                       }}
@@ -188,7 +189,7 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setExploreOpen(false)
-                      setDialogOpen(true)
+                      openDialog()
                     }}
                     className="flex w-full items-center justify-between rounded-[0.9rem_0_0.9rem_0.9rem] px-3.5 py-3 text-sm font-medium text-amber-300 transition hover:bg-stone-900"
                   >
@@ -276,7 +277,7 @@ export default function Header() {
             </>
           ) : (
             <button
-              onClick={() => setDialogOpen(true)}
+              onClick={() => openDialog()}
               className="relative flex items-center gap-2 rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400"
             >
               <Wallet className="h-4 w-4" />
@@ -321,7 +322,7 @@ export default function Header() {
                 onClick={(e) => {
                   if (!isApp && !signedIn) {
                     e.preventDefault()
-                    setDialogOpen(true)
+                    openDialog()
                   }
                   setMenuOpen(false)
                 }}
@@ -342,7 +343,7 @@ export default function Header() {
           <button
             onClick={() => {
               setMenuOpen(false)
-              setDialogOpen(true)
+              openDialog()
             }}
             className="mt-3 w-full rounded-[1.25rem_0_1.25rem_0] border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300"
           >
@@ -363,7 +364,7 @@ export default function Header() {
             <button
               onClick={() => {
                 setMenuOpen(false)
-                setDialogOpen(true)
+                openDialog()
               }}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-[1.25rem_0_1.25rem_0] bg-gradient-to-b from-amber-300 to-amber-500 px-4 py-3 text-center text-sm font-semibold text-stone-950"
             >
@@ -395,7 +396,7 @@ export default function Header() {
         </div>
       )}
 
-      <AuthDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      <AuthDialog />
     </header>
   )
 }
