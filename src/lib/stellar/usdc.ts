@@ -1,5 +1,7 @@
 /** Shared USDC helpers — safe to import from both server and client code. */
 
+import { getNetworkConfig } from './network'
+
 export const USDC_DECIMALS = 7n
 export const XLM_DECIMALS = 7n
 
@@ -108,17 +110,21 @@ async function fetchXlmUsdcRate(): Promise<number> {
   return fallback
 }
 
+/** Classic-asset USDC issuers per network (the DEX orderbook is keyed by issuer). */
+const USDC_ISSUER = {
+  TESTNET: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+  PUBLIC: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+} as const
+
 /** Midpoint of the live USDC/XLM orderbook, or null when there's no liquidity. */
 async function fetchOrderbookRate(): Promise<number | null> {
-  const issuer =
-    process.env.NEXT_PUBLIC_USDC_SAC_TESTNET ??
-    'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA'
+  const net = await getNetworkConfig()
   const url =
-    `https://horizon-testnet.stellar.org/order_book` +
+    `${net.horizonUrl}/order_book` +
     `?selling_asset_type=native` +
     `&buying_asset_type=credit_alphanum4` +
     `&buying_asset_code=USDC` +
-    `&buying_asset_issuer=${issuer}`
+    `&buying_asset_issuer=${USDC_ISSUER[net.network]}`
 
   try {
     const res = await fetch(url, { cache: 'no-store' })

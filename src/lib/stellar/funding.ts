@@ -1,32 +1,23 @@
 import 'server-only'
 import { contract } from '@stellar/stellar-sdk'
-import { NETWORK_PASSPHRASE } from './contractState'
-
-const RPC_URL =
-  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org'
-
-/**
- * USDC Stellar Asset Contract on testnet.
- * Deterministic SAC id for issuer GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
- * (derived via `stellar contract id asset`).
- */
-const USDC_SAC =
-  process.env.NEXT_PUBLIC_USDC_SAC_TESTNET ||
-  'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA'
+import { getNetworkConfig } from './network'
 
 /**
  * Reads how much USDC currently sits in a project contract on-chain.
- * Uses the SDK's embedded SAC spec, so no wasm is downloaded.
+ * Uses the SDK's embedded SAC spec, so no wasm is downloaded. Network,
+ * RPC URL and USDC asset all come from the admin-panel-driven config.
  */
 export async function getContractUsdcBalance(contractId: string): Promise<bigint> {
   const read = async (): Promise<bigint> => {
+    const net = await getNetworkConfig()
+    if (!net.usdcAsset) throw new Error('USDC asset not configured for this network')
     interface SacClient {
       balance(opts: { id: string }): Promise<{ result: bigint }>
     }
     const client = await contract.Client.from<SacClient>({
-      contractId: USDC_SAC,
-      rpcUrl: RPC_URL,
-      networkPassphrase: NETWORK_PASSPHRASE,
+      contractId: net.usdcAsset,
+      rpcUrl: net.rpcUrl,
+      networkPassphrase: net.networkPassphrase,
     })
     const res = await client.balance({ id: contractId })
     return BigInt(res.result)

@@ -3,20 +3,21 @@ import CopyButton from './CopyButton'
 import LedgerActions from './LedgerActions'
 import {
   CONTRACT_ID,
-  NETWORK_PASSPHRASE,
   getContractState,
   maskAddress,
   sharePct,
   shortenAddress,
 } from '@/lib/stellar/contractState'
+import { getNetworkConfig } from '@/lib/stellar/network'
 
 export const dynamic = 'force-dynamic'
 
-const explorerLink = (id: string) =>
-  `https://stellar.expert/explorer/testnet/contract/${id}`
+const explorerLink = (id: string, network: 'TESTNET' | 'PUBLIC') =>
+  `https://stellar.expert/explorer/${network === 'PUBLIC' ? 'public' : 'testnet'}/contract/${id}`
 
 export default async function ContractExplorer() {
-  const state = await getContractState()
+  const [state, net] = await Promise.all([getContractState(), getNetworkConfig()])
+  const networkLabel = net.network.toLowerCase()
 
   const live = state && state.admin && state.contributors.length > 0
 
@@ -48,7 +49,7 @@ export default async function ContractExplorer() {
               </div>
             </div>
             <a
-              href={explorerLink(CONTRACT_ID)}
+              href={explorerLink(CONTRACT_ID, net.network)}
               target="_blank"
               rel="noreferrer"
               className="btn-drip-ghost inline-flex items-center gap-1.5 bg-stone-900/60 px-4 py-2 text-sm"
@@ -91,7 +92,7 @@ export default async function ContractExplorer() {
                     </span>
                     {state.token ? (
                       <a
-                        href={explorerLink(state.token)}
+                        href={explorerLink(state.token, net.network)}
                         target="_blank"
                         rel="noreferrer"
                         className="font-mono text-xs text-amber-300 hover:text-amber-200"
@@ -108,7 +109,7 @@ export default async function ContractExplorer() {
                       Network
                     </span>
                     <span className="font-mono text-xs text-stone-300">
-                      testnet · {NETWORK_PASSPHRASE}
+                      {networkLabel} · {net.networkPassphrase}
                     </span>
                   </div>
 
@@ -188,15 +189,15 @@ export default async function ContractExplorer() {
                 )}
 
                 <p className="mt-6 border-t border-stone-800 pt-4 font-mono text-[11px] text-stone-500">
-                  reads: soroban-testnet.stellar.org · typed via the generated
+                  reads: {net.rpcUrl.replace('https://', '')} · typed via the generated
                   revenue-splitter bindings · identities kept private
                 </p>
               </div>
             </div>
           ) : (
             <div className="mt-6 text-sm text-stone-400">
-              Could not reach the testnet RPC. Check{' '}
-              <code className="text-stone-300">NEXT_PUBLIC_SOROBAN_RPC_URL</code>.
+              Could not reach the {networkLabel} RPC — check the Network
+              settings in the admin panel.
             </div>
           )}
 

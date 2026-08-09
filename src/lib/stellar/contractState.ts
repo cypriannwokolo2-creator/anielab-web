@@ -1,8 +1,8 @@
 import 'server-only'
 import { Client, networks } from '@/lib/stellar/bindings'
+import { getNetworkConfig } from './network'
 
 export const CONTRACT_ID = networks.testnet.contractId
-export const NETWORK_PASSPHRASE = networks.testnet.networkPassphrase
 
 export interface ContractState {
   admin: string | null
@@ -12,15 +12,16 @@ export interface ContractState {
   totalShares: bigint
 }/**
  * Reads the live on-chain state of the deployed RevenueSplitter instance
- * (testnet) using the generated typed bindings.
+ * using the generated typed bindings. RPC URL and network passphrase come
+ * from the admin-panel-driven network config.
  */
 export async function getContractState(): Promise<ContractState | null> {
   try {
+    const net = await getNetworkConfig()
     const client = new Client({
       contractId: CONTRACT_ID,
-      networkPassphrase: NETWORK_PASSPHRASE,
-      rpcUrl:
-        process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org',
+      networkPassphrase: net.networkPassphrase,
+      rpcUrl: net.rpcUrl,
     })
 
     const [admin, token, contributors, shares, totalShares] = await Promise.all([

@@ -2,17 +2,7 @@ import 'client-only'
 import { contract } from '@stellar/stellar-sdk'
 import type { AssembledTransaction } from '@stellar/stellar-sdk/contract'
 import { signTransactionWith } from './wallets'
-
-const RPC_URL =
-  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org'
-
-/** Test SDF Network ; September 2015 */
-const NETWORK_PASSPHRASE = 'Test SDF Network ; September 2015'
-
-/** USDC Stellar Asset Contract on testnet. */
-const USDC_SAC =
-  process.env.NEXT_PUBLIC_USDC_SAC_TESTNET ||
-  'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA'
+import { getNetworkConfig } from './network'
 
 interface SacClient {
   transfer(opts: { from: string; to: string; amount: bigint }): Promise<AssembledTransaction<unknown>>
@@ -32,16 +22,21 @@ export async function sendUsdcPledge(opts: {
 }): Promise<{ hash: string | null; toXdr: string }> {
   const { providerId, publicKey, toContractId, amountUsdc } = opts
 
+  const net = await getNetworkConfig()
+  if (!net.usdcAsset) {
+    throw new Error('USDC is not configured on the live network yet — try again later')
+  }
+
   const client = await contract.Client.from<SacClient>({
-    contractId: USDC_SAC,
-    rpcUrl: RPC_URL,
-    networkPassphrase: NETWORK_PASSPHRASE,
+    contractId: net.usdcAsset,
+    rpcUrl: net.rpcUrl,
+    networkPassphrase: net.networkPassphrase,
     publicKey,
     signTransaction: async (xdr, signOpts) => {
       const res = await signTransactionWith(
         providerId,
         xdr,
-        signOpts?.networkPassphrase ?? NETWORK_PASSPHRASE
+        signOpts?.networkPassphrase ?? net.networkPassphrase
       )
       return { signedTxXdr: res.signedTxXdr, signerAddress: res.signerAddress }
     },

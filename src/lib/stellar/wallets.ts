@@ -31,6 +31,7 @@ export interface WalletAdapter {
 export const stellarKitId = 'stellar-kit'
 
 import type * as Swk from '@creit.tech/stellar-wallets-kit'
+import { getNetworkConfig } from './network'
 
 type KitCore = {
   StellarWalletsKit: typeof Swk.StellarWalletsKit
@@ -39,6 +40,7 @@ type KitCore = {
 
 let kitPromise: Promise<KitCore> | null = null
 let kitInitialized = false
+let kitNetworkId: 'TESTNET' | 'PUBLIC' | null = null
 
 function loadKit(): Promise<KitCore> {
   if (kitPromise) return kitPromise
@@ -49,8 +51,9 @@ function loadKit(): Promise<KitCore> {
 
 async function initKit(): Promise<KitCore> {
   const kit = await loadKit()
-  if (kitInitialized) return kit
+  if (kitInitialized && kitNetworkId === (await getNetworkConfig()).network) return kit
 
+  const net = await getNetworkConfig()
   const { defaultModules } = await import(
     '@creit.tech/stellar-wallets-kit/modules/utils'
   )
@@ -71,7 +74,10 @@ async function initKit(): Promise<KitCore> {
           url: typeof window !== 'undefined' ? window.location.origin : 'https://anielab.app',
           icons: [],
         },
-        allowedChains: [WalletConnectTargetChain.TESTNET],
+        allowedChains:
+          net.network === 'PUBLIC'
+            ? [WalletConnectTargetChain.PUBLIC]
+            : [WalletConnectTargetChain.TESTNET],
       }),
     ]
   }
@@ -79,10 +85,11 @@ async function initKit(): Promise<KitCore> {
   kit.StellarWalletsKit.init({
     modules,
     selectedWalletId: 'freighter',
-    network: kit.Networks.TESTNET,
+    network: net.network === 'PUBLIC' ? kit.Networks.PUBLIC : kit.Networks.TESTNET,
     authModal: { showInstallLabel: true },
   })
   kitInitialized = true
+  kitNetworkId = net.network
   return kit
 }
 
@@ -132,8 +139,9 @@ export async function connectWithKit(): Promise<{ address: string; walletId: str
 
 export async function kitSignMessage(message: string): Promise<SignatureResult> {
   const kit = await initKit()
+  const net = await getNetworkConfig()
   const { signedMessage } = await kit.StellarWalletsKit.signMessage(message, {
-    networkPassphrase: kit.Networks.TESTNET,
+    networkPassphrase: net.networkPassphrase,
   })
   return { signedMessage }
 }
@@ -295,7 +303,7 @@ export const rabetAdapter: WalletAdapter = {
     if (!r) throw new Error('Rabet extension not detected')
     const wallet = r.wallet ?? r
     if (!wallet.signMessage) throw new Error('Rabet does not support message signing')
-    const res = await wallet.signMessage(message, { network: 'TESTNET' })
+    const res = await wallet.signMessage(message, { network: (await getNetworkConfig()).network })
     if (typeof res === 'string') return { signedMessage: res }
     if (res?.signedMessage) return { signedMessage: res.signedMessage }
     if (res?.signature) return { signature: res.signature }
@@ -337,7 +345,7 @@ export const lobstrAdapter: WalletAdapter = {
   async signMessage(message) {
     const l = lobstrGlobal()
     if (!l || !l.signMessage) throw new Error('LOBSTR does not support message signing')
-    const res = await l.signMessage(message, { network: 'TESTNET' })
+    const res = await l.signMessage(message, { network: (await getNetworkConfig()).network })
     if (typeof res === 'string') return { signedMessage: res }
     if (res?.signedMessage) return { signedMessage: res.signedMessage }
     if (res?.signature) return { signature: res.signature }

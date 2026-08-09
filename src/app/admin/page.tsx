@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatUsdc } from '@/lib/stellar/usdc'
 import { isAdminSessionValid } from '@/lib/admin/guard'
 import AdminSettings from '@/components/AdminSettings'
+import NetworkSettings from '@/components/NetworkSettings'
 import AdminChangePassword from '@/components/AdminChangePassword'
 import AdminLogin from '@/components/AdminLogin'
 
@@ -123,6 +124,14 @@ export default async function AdminPage() {
         <h2 className="text-lg font-semibold">Platform Settings</h2>
         <div className="mt-4">
           <AdminSettings />
+        </div>
+      </section>
+
+      {/* Stellar network switch */}
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold">Network</h2>
+        <div className="mt-4">
+          <NetworkSettings />
         </div>
       </section>
 
