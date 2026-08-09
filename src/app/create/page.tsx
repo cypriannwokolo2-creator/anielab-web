@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
@@ -18,6 +18,18 @@ interface ContributorInput {
 }
 
 const STEPS = ['Project Info', 'Milestones', 'Team', 'Deploy'] as const
+
+// Map the ?role= param (from the landing "Who it's for" cards) to a display
+// role name so arriving creators start with their role pre-filled.
+const ROLE_FROM_PARAM: Record<string, string> = {
+  writer: 'Writer',
+  illustrator: 'Illustrator',
+  composer: 'Composer',
+  'voice-actor': 'Voice Actor',
+  developer: 'Developer',
+  producer: 'Producer',
+  designer: 'Designer',
+}
 
 export default function CreateProjectPage() {
   const router = useRouter()
@@ -45,6 +57,17 @@ export default function CreateProjectPage() {
   const [contributors, setContributors] = useState<ContributorInput[]>([
     { stellar_address: '', role: 'Creator', share_pct: 100 },
   ])
+
+  // Pre-fill the first contributor's role from the ?role= query param (only if
+  // it's still the default, so we never clobber user edits).
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get('role')
+    const mapped = param ? ROLE_FROM_PARAM[param] : undefined
+    if (!mapped) return
+    setContributors((prev) =>
+      prev.map((c, i) => (i === 0 && c.role === 'Creator' ? { ...c, role: mapped } : c))
+    )
+  }, [])
 
   function addMilestone() {
     setMilestones([...milestones, { title: '', pct: 0 }])
