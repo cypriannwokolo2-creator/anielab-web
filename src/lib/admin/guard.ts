@@ -1,15 +1,34 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 
 /**
- * Admin guard — intentionally a no-op right now so the panel is reachable
- * without auth. Designed so wiring real admin auth later is a single change:
- * return `false` (or redirect) unless the current user passes an admin check.
+ * Admin guard — checks that:
+ * 1. The user has a valid Supabase session.
+ * 2. The `admin_password` cookie matches the ADMIN_PASSWORD env var.
  *
- * TODO(auth): when admin auth lands, read the session here (e.g. via
- * `@/lib/supabase/server` `getUser()`) and gate on an admin role instead of
- * always allowing.
+ * If either check fails, redirect to the landing page.
+ * The admin password cookie is set by the client-side admin login flow
+ * after a successful POST to /api/admin/auth on the backend.
  */
 export async function requireAdmin(): Promise<void> {
-  const allowed = process.env.ADMIN_OPEN === 'false' ? false : true
-  if (!allowed) redirect('/')
+  const expected = process.env.ADMIN_PASSWORD
+  if (!expected) {
+    // ADMIN_PASSWORD not configured — deny access.
+    redirect('/')
+  }
+
+  // Check Supabase session.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    redirect('/')
+  }
+
+  // Check admin password cookie.
+  const cookieStore = await cookies()
+  const adminPw = cookieStore.get('admin_password')?.value
+  if (!adminPw || adminPw !== expected) {
+    redirect('/')
+  }
 }

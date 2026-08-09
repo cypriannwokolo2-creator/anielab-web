@@ -3,6 +3,7 @@ import { Coins, FolderOpen, UserRound, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatUsdc } from '@/lib/stellar/usdc'
 import { requireAdmin } from '@/lib/admin/guard'
+import AdminSettings from '@/components/AdminSettings'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,9 +43,8 @@ export default async function AdminPage() {
           </p>
           <h1 className="mt-2 text-3xl font-bold">AnieLab dashboard</h1>
           <p className="mt-2 text-sm text-stone-500">
-            Read-only view of the public database. Authentication for this panel
-            is not wired up yet — `requireAdmin()` in src/lib/admin/guard.ts is
-            the single gate to change when it is.
+            Manage the platform — view users, projects, contributions,
+            and configure platform-wide settings.
           </p>
         </div>
         <Link href="/" className="text-sm text-amber-400 hover:text-amber-300">
@@ -112,6 +112,14 @@ export default async function AdminPage() {
           ])}
         />
       </Section>
+
+      {/* Platform settings */}
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold">Platform Settings</h2>
+        <div className="mt-4">
+          <AdminSettings />
+        </div>
+      </section>
     </div>
   )
 }
