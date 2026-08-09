@@ -1,13 +1,17 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { ArrowUpRight, Brush, HandCoins, Mic, Music, PenLine } from 'lucide-react'
+import { useWalletStore } from '@/lib/stellar/useWalletAuth'
+import { useAuthDialog } from '@/lib/useAuthDialog'
 
 interface Role {
   icon: typeof PenLine
   title: string
   line: string
   tag: string
+  href: string
 }
 
 const roles: Role[] = [
@@ -16,30 +20,35 @@ const roles: Role[] = [
     title: 'Writer',
     line: 'Scripts, story, and world-building — credited in every draft, paid on every payout.',
     tag: 'Your % on-chain',
+    href: '/create?role=writer',
   },
   {
     icon: Brush,
     title: 'Illustrator',
     line: 'Character sheets to key frames. Every file pinned to IPFS with your name on it.',
     tag: 'Your % on-chain',
+    href: '/create?role=illustrator',
   },
   {
     icon: Music,
     title: 'Composer',
     line: 'Score and sound design, split from the same pot as everyone else. Automatically.',
     tag: 'Your % on-chain',
+    href: '/create?role=composer',
   },
   {
     icon: Mic,
     title: 'Voice Actor',
     line: 'Lines, takes, and direction tracked per episode or track — never lost in a group chat.',
     tag: 'Your % on-chain',
+    href: '/create?role=voice-actor',
   },
   {
     icon: HandCoins,
     title: 'Backer',
     line: 'Fund projects you believe in, then watch every payout land — in public.',
     tag: 'Verify it yourself',
+    href: '/fund',
   },
 ]
 
@@ -48,13 +57,15 @@ function RoleCard({
   index,
   dimmed,
   onHover,
+  onPick,
 }: {
   role: Role
   index: number
   dimmed: boolean
   onHover: (index: number | null) => void
+  onPick: (role: Role) => void
 }) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLAnchorElement>(null)
   const [tilt, setTilt] = useState('')
 
   function onMove(e: React.MouseEvent) {
@@ -69,12 +80,23 @@ function RoleCard({
   const Icon = role.icon
 
   return (
-    <div
+    <Link
+      href={role.href}
       ref={ref}
+      onClick={(e) => {
+        // Signed-out visitors land in the signup dialog with this role
+        // pre-selected — signing up is how you "get" the role. Signed-in
+        // users navigate to the matching page instead.
+        const { authStatus } = useWalletStore.getState()
+        if (authStatus !== 'authenticated') {
+          e.preventDefault()
+          onPick(role)
+        }
+      }}
       onMouseMove={onMove}
       onMouseEnter={() => onHover(index)}
       onMouseLeave={() => onHover(null)}
-      className={`w-72 shrink-0 transition-all duration-300 will-change-transform ${
+      className={`block w-72 shrink-0 transition-all duration-300 will-change-transform ${
         dimmed ? 'opacity-30 saturate-50 blur-[2px] scale-[0.97]' : 'opacity-100 z-10'
       }`}
       style={{ transform: dimmed ? undefined : tilt }}
@@ -103,13 +125,24 @@ function RoleCard({
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }
 
 export default function RoleMarquee() {
   const [hovered, setHovered] = useState<number | null>(null)
   const spotlightRef = useRef<HTMLDivElement>(null)
+  const openDialog = useAuthDialog((s) => s.openDialog)
+  const restoreSession = useWalletStore((s) => s.restoreSession)
+
+  // Make sure the session is hydrated so the signed-in check above is accurate.
+  useEffect(() => {
+    void restoreSession()
+  }, [restoreSession])
+
+  function onPick(role: Role) {
+    openDialog(role.title)
+  }
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const el = spotlightRef.current
@@ -129,6 +162,7 @@ export default function RoleMarquee() {
         <p className="mx-auto mt-3 max-w-2xl text-stone-400">
           Web3 for creators, not just developers. One project, five kinds of
           people, one shared ledger — no crypto experience needed to join.
+          Pick your role to get started.
         </p>
       </div>
 
@@ -153,6 +187,7 @@ export default function RoleMarquee() {
               index={i}
               dimmed={hovered !== null && hovered !== i}
               onHover={setHovered}
+              onPick={onPick}
             />
           ))}
         </div>
