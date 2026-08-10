@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { setAdminToken } from '@/lib/admin/token'
+import { LANDING_URL } from '@/lib/hosts'
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
 
@@ -114,6 +115,15 @@ export default function AdminLogin() {
     }
   }
 
+  // Admin sessions are locked to /admin by the middleware, so the lock
+  // screen is the only place an admin can sign out and start over.
+  async function handleSignOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = LANDING_URL
+  }
+
   return (
     <div className="mx-auto max-w-md px-6 py-24">
       <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-400/80">
@@ -180,6 +190,13 @@ export default function AdminLogin() {
       )}
 
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+
+      <button
+        onClick={handleSignOut}
+        className="mt-8 text-xs text-stone-500 transition hover:text-amber-300"
+      >
+        Sign out and use a different account
+      </button>
     </div>
   )
 }

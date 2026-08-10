@@ -10,3 +10,4 @@ export const APP_HOST = 'app.anielab.app'
 export const LANDING_URL = `https://${LANDING_HOST}`
 export const APP_URL = `https://${APP_HOST}`
 export const DASHBOARD_PATH = '/dashboard'
+export const ADMIN_PATH = '/admin'

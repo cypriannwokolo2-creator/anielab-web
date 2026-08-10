@@ -7,7 +7,7 @@ import { Loader2, Mail, Wallet, X, Check } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import { useAuthDialog } from '@/lib/useAuthDialog'
 import { createClient } from '@/lib/supabase/client'
-import { APP_HOST, APP_URL, DASHBOARD_PATH } from '@/lib/hosts'
+import { ADMIN_PATH, APP_HOST, APP_URL, DASHBOARD_PATH } from '@/lib/hosts'
 import WalletPicker from './WalletPicker'
 import PasswordField from './PasswordField'
 
@@ -160,12 +160,13 @@ export default function AuthDialog() {
 
   // The dialog only ever opens on the landing host (the app host redirects
   // signed-out visitors away before they reach it), so a successful sign-in
-  // should always land in the app: jump to the dashboard. On the app host
-  // itself this is a no-op.
-  function onAuthSuccess() {
+  // should always land in the app: regular users go to the dashboard, admin
+  // accounts are locked to the admin panel. On the app host itself this is a
+  // no-op.
+  function onAuthSuccess(isAdmin = false) {
     onClose()
     if (window.location.hostname !== APP_HOST) {
-      window.location.href = `${APP_URL}${DASHBOARD_PATH}`
+      window.location.href = `${APP_URL}${isAdmin ? ADMIN_PATH : DASHBOARD_PATH}`
     }
   }
 
@@ -204,7 +205,7 @@ export default function AuthDialog() {
           if (linkError) console.warn('users row link failed', linkError)
         }
         toast.success('Signed in.')
-        onAuthSuccess()
+        onAuthSuccess(data.user?.user_metadata?.role === 'admin')
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong')
@@ -278,7 +279,7 @@ export default function AuthDialog() {
         if (linkError) console.warn('users row link failed', linkError)
       }
       toast.success('Signed in.')
-      onAuthSuccess()
+      onAuthSuccess(data.user?.user_metadata?.role === 'admin')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Wrong or expired code')
     } finally {
