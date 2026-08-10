@@ -43,7 +43,9 @@ function getSession(request: NextRequest): SessionInfo {
     : single
   if (!raw) return { signedIn: false, isAdmin: false }
   try {
-    const payload = JSON.parse(atob(raw.replace(/-/g, '+').replace(/_/g, '/')))
+    // Newer @supabase/ssr versions prefix the cookie value with "base64-".
+    const b64 = raw.startsWith('base64-') ? raw.slice('base64-'.length) : raw
+    const payload = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/')))
     const signedIn = typeof payload?.expires_at === 'number' && payload.expires_at * 1000 > Date.now()
     const isAdmin = hasAdminToken || payload?.user?.user_metadata?.role === 'admin'
     return { signedIn, isAdmin }
