@@ -59,10 +59,14 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const { signedIn, isAdmin } = getSession(request)
 
-  // App host: every page requires a session. Admins are locked to the admin
-  // panel; regular users are kept out of it. The root lands on the dashboard.
+  // App host: every page except /admin requires a session — /admin is the
+  // self-contained admin entry point (it carries its own Supabase sign-in).
+  // Admins are locked to the panel; regular users are kept out of it.
   if (hostname === APP_HOST) {
-    if (!signedIn) return NextResponse.redirect(new URL(LANDING_URL, request.url))
+    if (!signedIn) {
+      if (pathname === ADMIN_PATH) return NextResponse.next()
+      return NextResponse.redirect(new URL(LANDING_URL, request.url))
+    }
     if (isAdmin) {
       if (pathname !== ADMIN_PATH) {
         return NextResponse.redirect(new URL(`${APP_URL}${ADMIN_PATH}`, request.url))

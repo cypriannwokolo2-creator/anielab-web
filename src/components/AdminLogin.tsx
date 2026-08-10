@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { setAdminToken } from '@/lib/admin/token'
@@ -9,12 +9,16 @@ import { LANDING_URL } from '@/lib/hosts'
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
 
 /**
- * Two-step admin unlock: panel password → emailed OTP. On success the signed
- * admin token is stored in a cookie and the page re-renders server-side.
+ * Three-step admin unlock, fully self-contained on /admin (admins never use
+ * the normal site): Supabase sign-in → panel password → emailed OTP. On
+ * success the signed admin token is stored in a cookie and the page
+ * re-renders server-side.
  */
 export default function AdminLogin() {
   const router = useRouter()
-  const [step, setStep] = useState<'password' | 'otp'>('password')
+  const [step, setStep] = useState<'supabase' | 'password' | 'otp'>('supabase')
+  const [sbEmail, setSbEmail] = useState('')
+  const [sbPassword, setSbPassword] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [maskedEmail, setMaskedEmail] = useState('')
@@ -26,6 +30,41 @@ export default function AdminLogin() {
     const supabase = createClient()
     const { data: { session } } = await supabase.auth.getSession()
     return session?.access_token ?? null
+  }
+
+  // If an admin session already exists (e.g. page revisited within its TTL),
+  // skip straight to the panel password step.
+  useEffect(() => {
+    (async () => {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.user_metadata?.role === 'admin') setStep('password')
+    })()
+  }, [])
+
+  async function handleSupabaseSignIn() {
+    setError('')
+    setBusy(true)
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data, error: err } = await supabase.auth.signInWithPassword({
+        email: sbEmail,
+        password: sbPassword,
+      })
+      if (err) throw new Error(err.message)
+      if (data.user?.user_metadata?.role !== 'admin') {
+        await supabase.auth.signOut()
+        setError('This account is not an admin account.')
+        return
+      }
+      setStep('password')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function handlePassword() {
@@ -131,12 +170,40 @@ export default function AdminLogin() {
       </p>
       <h1 className="mt-2 text-3xl font-bold">Unlock the panel</h1>
       <p className="mt-2 text-sm text-stone-500">
-        {step === 'password'
-          ? 'Enter your admin password. We will email you a one-time code to finish.'
-          : `Enter the 6-digit code we sent to ${maskedEmail || 'your email'}.`}
+        {step === 'supabase'
+          ? 'Sign in with your admin account to continue.'
+          : step === 'password'
+            ? 'Enter your admin password. We will email you a one-time code to finish.'
+            : `Enter the 6-digit code we sent to ${maskedEmail || 'your email'}.`}
       </p>
 
-      {step === 'password' ? (
+      {step === 'supabase' ? (
+        <div className="mt-8 space-y-4">
+          <input
+            type="email"
+            value={sbEmail}
+            onChange={(e) => setSbEmail(e.target.value)}
+            placeholder="Admin email"
+            autoComplete="username"
+            className="w-full rounded-xl border border-stone-700 bg-stone-800 px-4 py-3 text-sm outline-none focus:border-amber-500"
+          />
+          <input
+            type="password"
+            value={sbPassword}
+            onChange={(e) => setSbPassword(e.target.value)}
+            placeholder="Password"
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-stone-700 bg-stone-800 px-4 py-3 text-sm outline-none focus:border-amber-500"
+          />
+          <button
+            onClick={handleSupabaseSignIn}
+            disabled={busy || !sbEmail || !sbPassword}
+            className="w-full rounded-full bg-gradient-to-b from-amber-300 to-amber-500 px-6 py-3 text-sm font-semibold text-stone-950 transition hover:from-amber-200 hover:to-amber-400 disabled:opacity-50"
+          >
+            {busy ? 'Signing in…' : 'Continue'}
+          </button>
+        </div>
+      ) : step === 'password' ? (
         <div className="mt-8 space-y-4">
           <input
             type="password"

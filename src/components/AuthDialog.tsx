@@ -7,7 +7,7 @@ import { Loader2, Mail, Wallet, X, Check } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import { useAuthDialog } from '@/lib/useAuthDialog'
 import { createClient } from '@/lib/supabase/client'
-import { ADMIN_PATH, APP_HOST, APP_URL, DASHBOARD_PATH } from '@/lib/hosts'
+import { APP_HOST, APP_URL, DASHBOARD_PATH } from '@/lib/hosts'
 import WalletPicker from './WalletPicker'
 import PasswordField from './PasswordField'
 
@@ -160,14 +160,21 @@ export default function AuthDialog() {
 
   // The dialog only ever opens on the landing host (the app host redirects
   // signed-out visitors away before they reach it), so a successful sign-in
-  // should always land in the app: regular users go to the dashboard, admin
-  // accounts are locked to the admin panel. On the app host itself this is a
-  // no-op.
-  function onAuthSuccess(isAdmin = false) {
+  // should always land in the app: jump to the dashboard. On the app host
+  // itself this is a no-op.
+  function onAuthSuccess() {
     onClose()
     if (window.location.hostname !== APP_HOST) {
-      window.location.href = `${APP_URL}${isAdmin ? ADMIN_PATH : DASHBOARD_PATH}`
+      window.location.href = `${APP_URL}${DASHBOARD_PATH}`
     }
+  }
+
+  // Admin accounts are banned from the normal site — they authenticate only
+  // through the self-contained panel at app.anielab.app/admin. Drop the
+  // session immediately so nothing lingers.
+  async function rejectAdminAccount(supabase: ReturnType<typeof createClient>) {
+    await supabase.auth.signOut()
+    throw new Error('Admin accounts cannot sign in here. Use the admin panel instead.')
   }
 
   async function emailSubmit(e: React.FormEvent) {
@@ -197,6 +204,9 @@ export default function AuthDialog() {
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw new Error(error.message)
+        if (data.user?.user_metadata?.role === 'admin') {
+          await rejectAdminAccount(supabase)
+        }
         if (data.user) {
           // link this account to the users table (no-op if already linked)
           const { error: linkError } = await supabase
@@ -205,7 +215,7 @@ export default function AuthDialog() {
           if (linkError) console.warn('users row link failed', linkError)
         }
         toast.success('Signed in.')
-        onAuthSuccess(data.user?.user_metadata?.role === 'admin')
+        onAuthSuccess()
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong')
@@ -272,6 +282,9 @@ export default function AuthDialog() {
         type: 'email',
       })
       if (error) throw new Error(error.message)
+      if (data.user?.user_metadata?.role === 'admin') {
+        await rejectAdminAccount(supabase)
+      }
       if (data.user) {
         const { error: linkError } = await supabase
           .from('users')
@@ -279,7 +292,7 @@ export default function AuthDialog() {
         if (linkError) console.warn('users row link failed', linkError)
       }
       toast.success('Signed in.')
-      onAuthSuccess(data.user?.user_metadata?.role === 'admin')
+      onAuthSuccess()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Wrong or expired code')
     } finally {
