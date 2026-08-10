@@ -273,11 +273,17 @@ export default function AuthDialog() {
   }
 
   // Signup verification: confirm the Brevo email code, then exchange the
-  // backend-issued magic-link token for a real Supabase session.
+  // backend-issued magic-link token for a real Supabase session. The password
+  // is sent along and applied by the backend at confirmation time — it is
+  // never stored client-side or written before the email is proven.
   async function verifyOtpCode(e: React.FormEvent) {
     e.preventDefault()
     if (!otpCode.trim()) {
       toast.error('Enter the code from your email.')
+      return
+    }
+    if (!password) {
+      toast.error('Your chosen password is missing — start signup again.')
       return
     }
     setBusy(true)
@@ -286,7 +292,7 @@ export default function AuthDialog() {
       const res = await fetch(`${BACKEND}/api/auth/signup/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailAddr, code: otpCode.trim() }),
+        body: JSON.stringify({ email: emailAddr, code: otpCode.trim(), password }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error ?? 'Wrong or expired code')
