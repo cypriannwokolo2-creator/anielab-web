@@ -27,6 +27,9 @@ const SESSION_COOKIE_RE = /^sb-[a-z0-9]+-auth-token(?:\.(\d+))?$/
 type SessionInfo = { signedIn: boolean; isAdmin: boolean }
 
 function getSession(request: NextRequest): SessionInfo {
+  // An unlocked admin panel always carries its session token — trust it as an
+  // admin signal even when the Supabase session lacks role='admin'.
+  const hasAdminToken = Boolean(request.cookies.get('admin_token')?.value)
   const chunks: { index: number; value: string }[] = []
   let single: string | null = null
   for (const { name, value } of request.cookies.getAll()) {
@@ -42,7 +45,7 @@ function getSession(request: NextRequest): SessionInfo {
   try {
     const payload = JSON.parse(atob(raw.replace(/-/g, '+').replace(/_/g, '/')))
     const signedIn = typeof payload?.expires_at === 'number' && payload.expires_at * 1000 > Date.now()
-    const isAdmin = payload?.user?.user_metadata?.role === 'admin'
+    const isAdmin = hasAdminToken || payload?.user?.user_metadata?.role === 'admin'
     return { signedIn, isAdmin }
   } catch {
     // Malformed cookie — treat as signed out.
@@ -73,8 +76,11 @@ export function middleware(request: NextRequest) {
       }
       return NextResponse.next()
     }
+    // /admin stays reachable for every signed-in account: admin accounts whose
+    // session metadata lacks role='admin' must still reach their panel, and
+    // non-admins get rejected by the backend during the unlock flow itself.
     if (pathname === ADMIN_PATH) {
-      return NextResponse.redirect(new URL(`${APP_URL}${DASHBOARD_PATH}`, request.url))
+      return NextResponse.next()
     }
     if (pathname === '/') {
       return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url))

@@ -7,7 +7,8 @@ import { Loader2, Mail, Wallet, X, Check } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import { useAuthDialog } from '@/lib/useAuthDialog'
 import { createClient } from '@/lib/supabase/client'
-import { APP_HOST, APP_URL, DASHBOARD_PATH } from '@/lib/hosts'
+import { APP_HOST, APP_URL, DASHBOARD_PATH, LANDING_HOST } from '@/lib/hosts'
+import { isAdminAccessToken } from '@/lib/admin/check'
 import WalletPicker from './WalletPicker'
 import PasswordField from './PasswordField'
 
@@ -164,9 +165,15 @@ export default function AuthDialog() {
   // itself this is a no-op.
   function onAuthSuccess() {
     onClose()
-    if (window.location.hostname !== APP_HOST) {
+    const { hostname } = window.location
+    if (hostname === APP_HOST) return
+    if (hostname === LANDING_HOST || hostname === `www.${LANDING_HOST}`) {
       window.location.href = `${APP_URL}${DASHBOARD_PATH}`
+      return
     }
+    // Local dev / any other host: stay on this origin so the session cookie
+    // (host-only here) is still visible on the dashboard.
+    window.location.href = DASHBOARD_PATH
   }
 
   // Admin accounts are banned from the normal site — they authenticate only
@@ -175,6 +182,17 @@ export default function AuthDialog() {
   async function rejectAdminAccount(supabase: ReturnType<typeof createClient>) {
     await supabase.auth.signOut()
     throw new Error('Admin accounts cannot sign in here. Use the admin panel instead.')
+  }
+
+  // Admin status is decided by metadata OR the backend's admin_credentials
+  // table, so a missing role flag can't sneak an admin past the ban.
+  async function isAdminUser(
+    user: { user_metadata?: Record<string, unknown> } | null | undefined,
+    accessToken: string | null | undefined
+  ): Promise<boolean> {
+    if (user?.user_metadata?.role === 'admin') return true
+    if (!accessToken) return false
+    return isAdminAccessToken(accessToken)
   }
 
   async function emailSubmit(e: React.FormEvent) {
@@ -204,7 +222,7 @@ export default function AuthDialog() {
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw new Error(error.message)
-        if (data.user?.user_metadata?.role === 'admin') {
+        if (await isAdminUser(data.user, data.session?.access_token)) {
           await rejectAdminAccount(supabase)
         }
         if (data.user) {
@@ -282,7 +300,7 @@ export default function AuthDialog() {
         type: 'email',
       })
       if (error) throw new Error(error.message)
-      if (data.user?.user_metadata?.role === 'admin') {
+      if (await isAdminUser(data.user, data.session?.access_token)) {
         await rejectAdminAccount(supabase)
       }
       if (data.user) {

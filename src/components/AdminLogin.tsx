@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { setAdminToken } from '@/lib/admin/token'
+import { isAdminAccessToken } from '@/lib/admin/check'
 import { LANDING_URL } from '@/lib/hosts'
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
@@ -32,14 +33,22 @@ export default function AdminLogin() {
     return session?.access_token ?? null
   }
 
+  // Admin eligibility is decided by metadata OR the backend's
+  // admin_credentials table, so a missing role flag can't lock an admin out.
+  async function isAdminSession(): Promise<boolean> {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return false
+    if (session.user.user_metadata?.role === 'admin') return true
+    return isAdminAccessToken(session.access_token)
+  }
+
   // If an admin session already exists (e.g. page revisited within its TTL),
   // skip straight to the panel password step.
   useEffect(() => {
     (async () => {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.user_metadata?.role === 'admin') setStep('password')
+      if (await isAdminSession()) setStep('password')
     })()
   }, [])
 
@@ -54,7 +63,10 @@ export default function AdminLogin() {
         password: sbPassword,
       })
       if (err) throw new Error(err.message)
-      if (data.user?.user_metadata?.role !== 'admin') {
+      const admin =
+        data.user?.user_metadata?.role === 'admin' ||
+        (data.session ? await isAdminAccessToken(data.session.access_token) : false)
+      if (!admin) {
         await supabase.auth.signOut()
         setError('This account is not an admin account.')
         return

@@ -38,6 +38,7 @@ export default function CreateProjectPage() {
 
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [hasSession, setHasSession] = useState(false)
 
   // Step 1: Project info
   const [title, setTitle] = useState('')
@@ -57,6 +58,26 @@ export default function CreateProjectPage() {
   const [contributors, setContributors] = useState<ContributorInput[]>([
     { stellar_address: '', role: 'Creator', share_pct: 100 },
   ])
+
+  // Email users have no wallet connected — a Supabase session is enough to
+  // create a project; the owner's Stellar address is typed in the Team step.
+  useEffect(() => {
+    void (async () => {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      setHasSession(Boolean(session))
+    })()
+  }, [])
+
+  // When a wallet IS connected, pre-fill the owner's address (first row only,
+  // and only while it's still blank).
+  useEffect(() => {
+    if (!address) return
+    setContributors((prev) =>
+      prev.map((c, i) => (i === 0 && !c.stellar_address ? { ...c, stellar_address: address } : c))
+    )
+  }, [address])
 
   // Pre-fill the first contributor's role from the ?role= query param (only if
   // it's still the default, so we never clobber user edits).
@@ -128,10 +149,6 @@ export default function CreateProjectPage() {
   }
 
   async function handleCreate() {
-    if (!address) {
-      toast.error('Connect your wallet first')
-      return
-    }
     if (milestoneTotal !== 100) {
       toast.error(`Milestone percentages must total 100% (currently ${milestoneTotal}%)`)
       return
@@ -236,7 +253,9 @@ export default function CreateProjectPage() {
       <p className="mt-2 text-stone-400">
         {status === 'connected'
           ? `Creating as ${address?.slice(0, 6)}…${address?.slice(-4)}`
-          : 'Connect your wallet to begin.'}
+          : hasSession
+            ? 'Signed in with email — add your Stellar address in the Team step.'
+            : 'Connect your wallet or sign in to begin.'}
       </p>
 
       {/* Step indicator */}
@@ -486,7 +505,7 @@ export default function CreateProjectPage() {
         ) : (
           <button
             onClick={handleCreate}
-            disabled={loading || status !== 'connected'}
+            disabled={loading || (!hasSession && status !== 'connected')}
             className="rounded-full bg-gradient-to-b from-amber-300 to-amber-500 px-6 py-2.5 text-sm font-semibold text-stone-950 shadow-md shadow-amber-950/40 transition hover:from-amber-200 hover:to-amber-400 disabled:opacity-40"
             type="button"
           >
