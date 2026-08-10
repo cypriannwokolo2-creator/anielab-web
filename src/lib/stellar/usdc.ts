@@ -64,50 +64,50 @@ export function formatXlm(raw: bigint): string {
 }
 
 /**
- * Live XLM→USDC rate. Tries, in order:
- *   1. The Stellar testnet DEX orderbook for USDC/XLM (best bid/ask midpoint)
- *      using the project's USDC issuer.
+ * Live XLM→USDC rate — real market data only, never a static fallback.
+ * Tries, in order:
+ *   1. The Stellar DEX orderbook for USDC/XLM (best bid/ask midpoint)
+ *      using the active network's USDC issuer.
  *   2. The live XLM market price (CoinGecko) — USDC tracks $1, so the
- *      XLM→USD price is a sound XLM→USDC estimate whenever the testnet
- *      orderbook has no liquidity (which is most of the time).
- *   3. NEXT_PUBLIC_XLM_USDC_RATE, then a fixed default.
- * Client-safe — used by the fund dialog for instant conversion previews,
- * while the on-chain transfer always settles in USDC.
+ *      XLM→USD price is a sound XLM→USDC estimate whenever the orderbook
+ *      has no liquidity.
+ * If neither source responds, the result is null and the caller must show
+ * an error instead of pledging at a made-up rate.
  *
- * The result is cached for RATE_CACHE_TTL_MS so opening the fund dialog
- * repeatedly doesn't hammer the APIs; use getXlmUsdcRateFresh() to force a
- * network read.
+ * Successful reads are cached for RATE_CACHE_TTL_MS so opening the fund
+ * dialog repeatedly doesn't hammer the APIs; a pledge quote stays valid for
+ * RATE_QUOTE_TTL_MS before the UI must refresh it. Use getXlmUsdcRateFresh()
+ * to force a network read.
  */
-const RATE_CACHE_TTL_MS = 60_000
+export const RATE_CACHE_TTL_MS = 60_000
+export const RATE_QUOTE_TTL_MS = 60_000
 
 let cachedRate: { value: number; at: number } | null = null
 
-export async function getXlmUsdcRate(): Promise<number> {
+export async function getXlmUsdcRate(): Promise<number | null> {
   if (cachedRate && Date.now() - cachedRate.at < RATE_CACHE_TTL_MS) {
     return cachedRate.value
   }
   const value = await fetchXlmUsdcRate()
-  cachedRate = { value, at: Date.now() }
+  if (value != null) cachedRate = { value, at: Date.now() }
   return value
 }
 
 /** Bypasses the TTL cache and re-reads the live rate. */
-export async function getXlmUsdcRateFresh(): Promise<number> {
+export async function getXlmUsdcRateFresh(): Promise<number | null> {
   const value = await fetchXlmUsdcRate()
-  cachedRate = { value, at: Date.now() }
+  if (value != null) cachedRate = { value, at: Date.now() }
   return value
 }
 
-async function fetchXlmUsdcRate(): Promise<number> {
-  const fallback = Number(process.env.NEXT_PUBLIC_XLM_USDC_RATE) || 0.12
-
+async function fetchXlmUsdcRate(): Promise<number | null> {
   const dex = await fetchOrderbookRate()
   if (dex != null) return dex
 
   const market = await fetchMarketRate()
   if (market != null) return market
 
-  return fallback
+  return null
 }
 
 /** Classic-asset USDC issuers per network (the DEX orderbook is keyed by issuer). */

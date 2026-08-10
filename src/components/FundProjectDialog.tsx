@@ -1,22 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import {
   HandCoins,
   Loader2,
   QrCode,
+  RefreshCw,
   Smartphone,
   X,
 } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import {
   formatUsdc,
-  getXlmUsdcRate,
   pledgeToUsdcRaw,
   type PledgeCurrency,
 } from '@/lib/stellar/usdc'
+import { useLiveRate } from '@/lib/stellar/useLiveRate'
 import { sendUsdcPledge } from '@/lib/stellar/pledge'
 import WalletPicker from './WalletPicker'
 import type { FundingProject } from './FundingBoard'
@@ -37,9 +38,13 @@ export default function FundProjectDialog({ project }: { project: FundingProject
   const [open, setOpen] = useState(false)
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState<PledgeCurrency>('USDC')
-  const [rate, setRate] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { address, status, authStatus, provider, signIn, signOut } = useWalletStore()
+
+  // Live XLM→USDC quote with a 60s expiry clock while the dialog is open
+  // in XLM mode — a stale quote can never be pledged with.
+  const live = useLiveRate(open && currency === 'XLM')
+  const rate = live.rate
 
   const mobile = isMobile()
   const walletBusy = status === 'connecting' || authStatus === 'signing'
@@ -48,19 +53,6 @@ export default function FundProjectDialog({ project }: { project: FundingProject
   const remaining = goal > project.funded ? goal - project.funded : 0n
 
   const rawUsdc = pledgeToUsdcRaw(amount, currency, rate ?? 0)
-
-  // Refresh the XLM→USDC rate whenever the dialog opens or the currency flips
-  // to XLM, so the conversion preview (and the final USDC amount) is current.
-  useEffect(() => {
-    if (!open || currency !== 'XLM') return
-    let cancelled = false
-    getXlmUsdcRate().then((r) => {
-      if (!cancelled) setRate(r)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [open, currency])
 
   // Connect + sign-in in one step, straight from the shared wallet picker.
   async function handleWalletSelected(providerId: string) {
@@ -80,12 +72,23 @@ export default function FundProjectDialog({ project }: { project: FundingProject
       toast.error('Connect a wallet first.')
       return
     }
-    if (currency === 'XLM' && rate == null) {
-      toast.error('Fetching the XLM→USDC rate — try again in a second.')
+    if (currency === 'XLM' && live.error && rate == null) {
+      toast.error('No live XLM→USDC rate available — refresh and try again.')
       return
     }
 
-    const raw = pledgeToUsdcRaw(amount, currency, rate ?? 0)
+    // An expired or missing quote gets refreshed right before building the
+    // transaction, so the on-chain USDC amount always uses a live price.
+    let quoteRate = rate
+    if (currency === 'XLM' && (quoteRate == null || live.stale)) {
+      quoteRate = await live.refresh()
+      if (quoteRate == null) {
+        toast.error('Could not fetch a live XLM→USDC rate — check your connection and retry.')
+        return
+      }
+    }
+
+    const raw = pledgeToUsdcRaw(amount, currency, quoteRate ?? 0)
     if (raw == null || raw <= 0n) {
       toast.error(`Enter a valid ${currency} amount.`)
       return
@@ -260,8 +263,44 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                   {/* conversion preview — the on-chain transfer is always USDC */}
                   <div className="rounded-xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs">
                     {currency === 'XLM' ? (
-                      rate == null ? (
-                        <p className="text-stone-500">Loading XLM→USDC rate…</p>
+                      live.error && rate == null ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-red-400">
+                            Couldn&apos;t fetch a live XLM→USDC rate.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void live.refresh()}
+                            disabled={live.refreshing}
+                            className="inline-flex items-center gap-1 rounded-full border border-stone-700 px-2.5 py-1 text-[11px] text-stone-300 transition hover:border-amber-500/60 hover:text-amber-300 disabled:opacity-50"
+                          >
+                            {live.refreshing ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                            Retry
+                          </button>
+                        </div>
+                      ) : rate == null ? (
+                        <p className="text-stone-500">Loading live XLM→USDC rate…</p>
+                      ) : live.stale ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-amber-300">Rate expired — refresh to continue.</p>
+                          <button
+                            type="button"
+                            onClick={() => void live.refresh()}
+                            disabled={live.refreshing}
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-500/50 px-2.5 py-1 text-[11px] text-amber-300 transition hover:bg-amber-500/10 disabled:opacity-50"
+                          >
+                            {live.refreshing ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                            Refresh
+                          </button>
+                        </div>
                       ) : rawUsdc != null ? (
                         <p className="text-stone-400">
                           {amount} XLM ≈ <span className="font-mono text-amber-300">${formatUsdc(rawUsdc)} USDC</span>
@@ -276,9 +315,10 @@ export default function FundProjectDialog({ project }: { project: FundingProject
                         USDC.
                       </p>
                     )}
-                    {currency === 'XLM' && rate != null && (
+                    {currency === 'XLM' && rate != null && !live.error && (
                       <p className="mt-1 text-[11px] text-stone-600">
-                        1 XLM ≈ ${rate.toFixed(4)} USDC (live rate)
+                        1 XLM ≈ ${rate.toFixed(4)} USDC (live)
+                        {live.ttlSec != null && !live.stale && <> · expires in {live.ttlSec}s</>}
                       </p>
                     )}
                   </div>

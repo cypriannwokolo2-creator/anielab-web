@@ -5,14 +5,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'sonner'
 import { createPortal } from 'react-dom'
-import { HandCoins, Loader2, X } from 'lucide-react'
+import { HandCoins, Loader2, RefreshCw, X } from 'lucide-react'
 import { useWalletStore } from '@/lib/stellar/useWalletAuth'
 import {
   formatUsdc,
-  getXlmUsdcRate,
   pledgeToUsdcRaw,
   type PledgeCurrency,
 } from '@/lib/stellar/usdc'
+import { useLiveRate } from '@/lib/stellar/useLiveRate'
 import { sendUsdcPledge } from '@/lib/stellar/pledge'
 import WalletPicker from '@/components/WalletPicker'
 
@@ -201,9 +201,13 @@ export default function FundPage() {
 function PledgeDialog({ project, onClose }: { project: Project; onClose: () => void }) {
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState<PledgeCurrency>('USDC')
-  const [rate, setRate] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { address, status, authStatus, provider, signIn, signOut } = useWalletStore()
+
+  // Live XLM→USDC quote with a 60s expiry clock — a stale quote can never
+  // be pledged with.
+  const live = useLiveRate(currency === 'XLM')
+  const rate = live.rate
 
   const connected = status === 'connected' && authStatus === 'authenticated'
   const walletBusy = status === 'connecting' || authStatus === 'signing'
@@ -211,15 +215,6 @@ function PledgeDialog({ project, onClose }: { project: Project; onClose: () => v
   const remaining = goal > project.total_pledged ? goal - project.total_pledged : 0
 
   const rawUsdc = pledgeToUsdcRaw(amount, currency, rate ?? 0)
-
-  useEffect(() => {
-    if (currency !== 'XLM') return
-    let cancelled = false
-    getXlmUsdcRate().then((r) => {
-      if (!cancelled) setRate(r)
-    })
-    return () => { cancelled = true }
-  }, [currency])
 
   async function handleWalletSelected(providerId: string) {
     await signIn(providerId)
@@ -238,12 +233,23 @@ function PledgeDialog({ project, onClose }: { project: Project; onClose: () => v
       toast.error('Connect a wallet first.')
       return
     }
-    if (currency === 'XLM' && rate == null) {
-      toast.error('Fetching XLM→USDC rate — try again in a second.')
+    if (currency === 'XLM' && live.error && rate == null) {
+      toast.error('No live XLM→USDC rate available — refresh and try again.')
       return
     }
 
-    const raw = pledgeToUsdcRaw(amount, currency, rate ?? 0)
+    // An expired or missing quote gets refreshed right before building the
+    // transaction, so the on-chain USDC amount always uses a live price.
+    let quoteRate = rate
+    if (currency === 'XLM' && (quoteRate == null || live.stale)) {
+      quoteRate = await live.refresh()
+      if (quoteRate == null) {
+        toast.error('Could not fetch a live XLM→USDC rate — check your connection and retry.')
+        return
+      }
+    }
+
+    const raw = pledgeToUsdcRaw(amount, currency, quoteRate ?? 0)
     if (raw == null || raw <= 0n) {
       toast.error(`Enter a valid ${currency} amount.`)
       return
@@ -369,8 +375,42 @@ function PledgeDialog({ project, onClose }: { project: Project; onClose: () => v
             {/* Conversion preview */}
             <div className="rounded-xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-xs">
               {currency === 'XLM' ? (
-                rate == null ? (
-                  <p className="text-stone-500">Loading XLM→USDC rate…</p>
+                live.error && rate == null ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-red-400">Couldn&apos;t fetch a live XLM→USDC rate.</p>
+                    <button
+                      type="button"
+                      onClick={() => void live.refresh()}
+                      disabled={live.refreshing}
+                      className="inline-flex items-center gap-1 rounded-full border border-stone-700 px-2.5 py-1 text-[11px] text-stone-300 transition hover:border-amber-500/60 hover:text-amber-300 disabled:opacity-50"
+                    >
+                      {live.refreshing ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                      Retry
+                    </button>
+                  </div>
+                ) : rate == null ? (
+                  <p className="text-stone-500">Loading live XLM→USDC rate…</p>
+                ) : live.stale ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-amber-300">Rate expired — refresh to continue.</p>
+                    <button
+                      type="button"
+                      onClick={() => void live.refresh()}
+                      disabled={live.refreshing}
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-500/50 px-2.5 py-1 text-[11px] text-amber-300 transition hover:bg-amber-500/10 disabled:opacity-50"
+                    >
+                      {live.refreshing ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                      Refresh
+                    </button>
+                  </div>
                 ) : rawUsdc != null ? (
                   <p className="text-stone-400">
                     {amount} XLM ≈{' '}
@@ -385,9 +425,10 @@ function PledgeDialog({ project, onClose }: { project: Project; onClose: () => v
                   project contract only accepts USDC.
                 </p>
               )}
-              {currency === 'XLM' && rate != null && (
+              {currency === 'XLM' && rate != null && !live.error && (
                 <p className="mt-1 text-[11px] text-stone-600">
-                  1 XLM ≈ ${rate.toFixed(4)} USDC (live orderbook rate)
+                  1 XLM ≈ ${rate.toFixed(4)} USDC (live)
+                  {live.ttlSec != null && !live.stale && <> · expires in {live.ttlSec}s</>}
                 </p>
               )}
             </div>
