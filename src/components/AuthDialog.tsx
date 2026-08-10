@@ -16,6 +16,8 @@ type Tab = 'email' | 'wallet'
 
 type View = 'main' | 'forgot' | 'otp'
 
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001'
+
 const AVAILABLE_ROLES = [
   'Writer',
   'Illustrator',
@@ -107,7 +109,6 @@ export default function AuthDialog() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [sentEmail, setSentEmail] = useState('')
   const [resendIn, setResendIn] = useState(0)
@@ -115,7 +116,7 @@ export default function AuthDialog() {
 
   const strength = passwordStrength(password)
 
-  // Counts down the email-resend cooldown (shared by the OTP and
+  // Counts down the email-resend cooldown (shared by the signup-OTP and
   // forgot-password flows) so users can't spam the mailer.
   useEffect(() => {
     if (resendIn <= 0) return
@@ -133,14 +134,18 @@ export default function AuthDialog() {
   // always client-side — document.body is safe here, and SSR never reaches it.
   useEffect(() => {
     if (open) {
-      resetView()
-      // Pre-select a role (e.g. from a "Who it's for" card) and jump straight
-      // to the email signup form where the role picker lives.
-      if (initialRole && (AVAILABLE_ROLES as readonly string[]).includes(initialRole)) {
-        setSelectedRoles([initialRole])
-        setMode('signup')
-        setTab('email')
-      }
+      // Defer the reset so the effect body never sets state synchronously
+      // (avoids cascading renders when the dialog opens).
+      void Promise.resolve().then(() => {
+        resetView()
+        // Pre-select a role (e.g. from a "Who it's for" card) and jump straight
+        // to the email signup form where the role picker lives.
+        if (initialRole && (AVAILABLE_ROLES as readonly string[]).includes(initialRole)) {
+          setSelectedRoles([initialRole])
+          setMode('signup')
+          setTab('email')
+        }
+      })
     }
   }, [open, initialRole])
 
@@ -151,7 +156,6 @@ export default function AuthDialog() {
   function resetView() {
     setView('main')
     setMode('signin')
-    setOtpSent(false)
     setOtpCode('')
     setSentEmail('')
     setConfirmPassword('')
@@ -209,16 +213,20 @@ export default function AuthDialog() {
           toast.error('Pick a stronger password — at least 8 characters with a mix of case, numbers, and symbols.')
           return
         }
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { roles: selectedRoles },
-          },
+        // Signup goes through the backend, which creates the account and
+        // emails a Brevo verification code. The dialog then steps into the
+        // OTP view to confirm the email.
+        const res = await fetch(`${BACKEND}/api/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, roles: selectedRoles }),
         })
-        if (error) throw new Error(error.message)
-        toast.success('Check your inbox to confirm your email, then sign in.')
-        setMode('signin')
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error ?? 'Could not start signup')
+        setSentEmail(email)
+        setView('otp')
+        startCooldown()
+        toast.success('Verification code sent — check your inbox to finish creating your account.')
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw new Error(error.message)
@@ -264,27 +272,8 @@ export default function AuthDialog() {
     }
   }
 
-  // Passwordless one-time-code login: send a 6-digit code to the email, then
-  // exchange it for a session. Supabase verifies the code server-side and
-  // returns a real access + refresh token pair.
-  async function sendOtp(e: React.FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signInWithOtp({ email })
-      if (error) throw new Error(error.message)
-      setSentEmail(email)
-      setOtpSent(true)
-      startCooldown()
-      toast.success('One-time code sent — check your inbox.')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not send code')
-    } finally {
-      setBusy(false)
-    }
-  }
-
+  // Signup verification: confirm the Brevo email code, then exchange the
+  // backend-issued magic-link token for a real Supabase session.
   async function verifyOtpCode(e: React.FormEvent) {
     e.preventDefault()
     if (!otpCode.trim()) {
@@ -293,26 +282,58 @@ export default function AuthDialog() {
     }
     setBusy(true)
     try {
+      const emailAddr = sentEmail || email
+      const res = await fetch(`${BACKEND}/api/auth/signup/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailAddr, code: otpCode.trim() }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error ?? 'Wrong or expired code')
+
       const supabase = createClient()
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: sentEmail || email,
-        token: otpCode.trim(),
-        type: 'email',
+      const { data: sessionData, error } = await supabase.auth.verifyOtp({
+        type: 'magiclink',
+        token_hash: data.tokenHash,
       })
       if (error) throw new Error(error.message)
-      if (await isAdminUser(data.user, data.session?.access_token)) {
+      if (await isAdminUser(sessionData.user, sessionData.session?.access_token)) {
         await rejectAdminAccount(supabase)
       }
-      if (data.user) {
+      if (sessionData.user) {
         const { error: linkError } = await supabase
           .from('users')
-          .upsert({ id: data.user.id, auth_method: 'email' }, { onConflict: 'id' })
+          .upsert(
+            { id: sessionData.user.id, auth_method: 'email' },
+            { onConflict: 'id' }
+          )
         if (linkError) console.warn('users row link failed', linkError)
       }
-      toast.success('Signed in.')
+      toast.success('Welcome to AnieLab — account created!')
       onAuthSuccess()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Wrong or expired code')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Resend the signup verification code (cooldown enforced server-side too).
+  async function resendOtpCode() {
+    if (resendIn > 0) return
+    setBusy(true)
+    try {
+      const res = await fetch(`${BACKEND}/api/auth/signup/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: sentEmail || email }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error ?? 'Could not resend code')
+      toast.success('New code sent — check your inbox.')
+      startCooldown()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not resend code')
     } finally {
       setBusy(false)
     }
@@ -455,84 +476,84 @@ export default function AuthDialog() {
                 </button>
               </form>
             ) : view === 'otp' ? (
-              otpSent ? (
-                <form onSubmit={verifyOtpCode} className="mt-6 space-y-4">
-                  <p className="text-sm leading-relaxed text-stone-400">
-                    We sent a 6-digit code to{' '}
-                    <span className="font-medium text-stone-200">{sentEmail || email}</span>.
-                    Enter it below to sign in — no password needed.
-                  </p>
-                  <label className="block">
-                    <span className="text-sm font-medium text-stone-300">One-time code</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      required
-                      autoFocus
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-4 py-2.5 text-center font-mono text-lg tracking-[0.4em] text-amber-200 outline-none transition focus:border-amber-500"
-                      placeholder="000000"
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={busy || otpCode.length < 6}
-                    className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
-                  >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify code'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetView}
-                    className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
-                  >
-                    ← Back to sign in
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={sendOtp} className="mt-6 space-y-4">
-                  <p className="text-sm leading-relaxed text-stone-400">
-                    We&apos;ll email you a one-time code — no password required.
-                  </p>
-                  <label className="block">
-                    <span className="text-sm font-medium text-stone-300">Email</span>
-                    <input
-                      type="email"
-                      required
-                      autoFocus
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500"
-                      placeholder="you@example.com"
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={busy || resendIn > 0}
-                    className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
-                  >
-                    {busy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : resendIn > 0 ? (
-                      `Send code in ${resendIn}s`
-                    ) : (
-                      'Send code'
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetView}
-                    className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
-                  >
-                    ← Back to sign in
-                  </button>
-                </form>
-              )
+              <form onSubmit={verifyOtpCode} className="mt-6 space-y-4">
+                <p className="text-sm leading-relaxed text-stone-400">
+                  We sent a 6-digit code to{' '}
+                  <span className="font-medium text-stone-200">{sentEmail || email}</span>.
+                  Enter it below to verify your email and finish creating your account.
+                </p>
+                <label className="block">
+                  <span className="text-sm font-medium text-stone-300">One-time code</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    required
+                    autoFocus
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-4 py-2.5 text-center font-mono text-lg tracking-[0.4em] text-amber-200 outline-none transition focus:border-amber-500"
+                    placeholder="000000"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy || otpCode.length < 6}
+                  className="btn-drip flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
+                >
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify & create account'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resendOtpCode}
+                  disabled={busy || resendIn > 0}
+                  className="w-full text-center text-xs text-stone-500 hover:text-amber-300 disabled:opacity-50"
+                >
+                  {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup')
+                    setView('main')
+                  }}
+                  className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                >
+                  ← Back to the signup form
+                </button>
+              </form>
             ) : (
               <form onSubmit={emailSubmit} className="mt-6 space-y-4">
+                <div
+                  className="grid grid-cols-2 gap-1 rounded-2xl border border-stone-700 bg-stone-900 p-1"
+                  style={{ borderRadius: '1rem 0 1rem 0' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setMode('signin')}
+                    className={`rounded-xl py-2.5 text-sm font-semibold transition ${
+                      mode === 'signin'
+                        ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950 shadow-lg shadow-amber-500/20'
+                        : 'text-stone-400 hover:text-white'
+                    }`}
+                    style={{ borderRadius: '0.75rem 0 0.75rem 0' }}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('signup')}
+                    className={`rounded-xl py-2.5 text-sm font-semibold transition ${
+                      mode === 'signup'
+                        ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950 shadow-lg shadow-amber-500/20'
+                        : 'text-stone-400 hover:text-white'
+                    }`}
+                    style={{ borderRadius: '0.75rem 0 0.75rem 0' }}
+                  >
+                    Create account
+                  </button>
+                </div>
                 <label className="block">
                   <span className="text-sm font-medium text-stone-300">Email</span>
                   <input
@@ -617,38 +638,17 @@ export default function AuthDialog() {
                     'Create account'
                   )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-                  className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
-                >
-                  {mode === 'signin'
-                    ? 'New here? Create an account'
-                    : 'Already have an account? Sign in'}
-                </button>
                 {mode === 'signin' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMode('signin')
-                        setView('forgot')
-                      }}
-                      className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
-                    >
-                      Forgot your password?
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMode('signin')
-                        setView('otp')
-                      }}
-                      className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
-                    >
-                      Sign in with a one-time code instead
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin')
+                      setView('forgot')
+                    }}
+                    className="w-full text-center text-xs text-stone-500 hover:text-amber-300"
+                  >
+                    Forgot your password?
+                  </button>
                 )}
               </form>
             )}
